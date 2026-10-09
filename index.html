@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Moja mala klinika</title>
+    <meta name="description" content="Učitavanje laboratorijskih dijagnoza u PDF formatu sa OneDrive-a, automatska AI ekstrakcija parametara i praćenje zdravstvenih trendova." />
+    <meta name="theme-color" content="#0a192f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Klinika" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />    
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta property="og:title" content="Moja mala klinika" />
+    <meta property="og:description" content="Učitavanje laboratorijskih dijagnoza u PDF formatu sa OneDrive-a, automatska AI ekstrakcija parametara i praćenje zdravstvenih trendova." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/pwa-512x512.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Moja mala klinika" />
+    <meta name="twitter:description" content="Učitavanje laboratorijskih dijagnoza u PDF formatu sa OneDrive-a, automatska AI ekstrakcija parametara i praćenje zdravstvenih trendova." />
+    <meta name="twitter:image" content="/pwa-512x512.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Moja mala klinika",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "All",
+        "description": "Učitavanje laboratorijskih dijagnoza u PDF formatu sa OneDrive-a, automatska AI ekstrakcija parametara i praćenje zdravstvenih trendova.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0"
+        }
+      }
+    </script>
+    <script>
+      window.__deferredPwaPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.__deferredPwaPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-available'));
+      });
+      window.addEventListener('appinstalled', () => {
+        window.__deferredPwaPrompt = null;
+        window.dispatchEvent(new CustomEvent('pwa-installed'));
+      });
+      function registerAppSW() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('SW registered:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('SW registration failed:', err);
+            });
+        }
+      }
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        registerAppSW();
+      } else {
+        window.addEventListener('DOMContentLoaded', registerAppSW);
+        window.addEventListener('load', registerAppSW);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

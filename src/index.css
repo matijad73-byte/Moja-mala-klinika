@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@media print {
+  /* Hide interactive navigation, header buttons, toasts, backdrop modals, and non-printable elements */
+  header,
+  #app-main-header,
+  #back-to-home-btn,
+  #change-parameter-btn,
+  #print-chart-btn,
+  #fullscreen-chart-btn,
+  #fullscreen-chart-modal,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Optimize page background and colors for printers */
+  body, html, #root {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 12pt !important;
+  }
+
+  /* Ensure chart container has full printable width */
+  #trend-chart-container,
+  #printable-document-content,
+  #printable-chart-content {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Optimize modal containers for clean print layout */
+  #blood-pressure-chart-modal,
+  #body-weight-chart-modal {
+    position: static !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: block !important;
+  }
+
+  #blood-pressure-chart-modal > div,
+  #body-weight-chart-modal > div {
+    box-shadow: none !important;
+    border: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Ensure Recharts svg prints clearly */
+  .recharts-responsive-container {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Avoid page breaks inside key medical cards */
+  table, tr, td, th {
+    page-break-inside: avoid;
+  }
+}

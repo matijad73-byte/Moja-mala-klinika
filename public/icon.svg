@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a192f"/>
+      <stop offset="100%" stop-color="#0f2b46"/>
+    </linearGradient>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+  <!-- Background with safe zone -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+  
+  <!-- Outer Glow Circle -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#14b8a6" stroke-width="6" opacity="0.25"/>
+  
+  <!-- Inner Shield / Heartbeat Container -->
+  <rect x="116" y="116" width="280" height="280" rx="60" fill="url(#tealGrad)"/>
+  
+  <!-- Medical Cross / Pulse Icon -->
+  <path d="M256 160 v192 M160 256 h192" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="28" fill="#0a192f"/>
+  <circle cx="256" cy="256" r="16" fill="#14b8a6"/>
+</svg>

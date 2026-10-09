@@ -1,0 +1,73 @@
+{
+  "bloodPressure": [
+    {
+      "id": "bp-1790363290841-nhqq",
+      "systolic": 120,
+      "diastolic": 80,
+      "pulse": 72,
+      "date": "2026-09-25",
+      "time": "19:08",
+      "periodOfDay": "dan",
+      "status": "normal",
+      "statusLabel": "Normalan pritisak",
+      "notes": "Kontrolno merenje",
+      "createdAt": "2026-09-25T19:08:10.848Z"
+    },
+    {
+      "id": "bp-init-1",
+      "systolic": 120,
+      "diastolic": 80,
+      "pulse": 72,
+      "date": "2025-01-18",
+      "time": "08:00",
+      "periodOfDay": "jutro",
+      "status": "optimal",
+      "statusLabel": "Optimalan pritisak",
+      "notes": "Jutarnje merenje u mirovanju",
+      "createdAt": "2025-01-18T08:00:00Z"
+    }
+  ],
+  "bodyHeight": [
+    {
+      "id": "bh-1790363290857-3n8p",
+      "height": 182,
+      "date": "2026-09-25",
+      "notes": "Sistematski pregled",
+      "createdAt": "2026-09-25T19:08:10.857Z"
+    },
+    {
+      "id": "bh-init-1",
+      "height": 182,
+      "date": "2025-01-18",
+      "notes": "Redovno merenje telesne dužine",
+      "createdAt": "2025-01-18T08:05:00Z"
+    }
+  ],
+  "lastSyncedAt": "2026-10-02T05:37:28.456Z",
+  "bodyWeight": [
+    {
+      "id": "bw-1790886535820-alhp",
+      "weight": 81.5,
+      "date": "2026-10-01",
+      "time": "23:24",
+      "notes": "",
+      "createdAt": "2026-10-01T20:28:55.820Z"
+    },
+    {
+      "id": "bw-1790444857518-wt8d",
+      "weight": 81.5,
+      "date": "2026-09-26",
+      "time": "17:47",
+      "notes": "Novo merenje",
+      "createdAt": "2026-09-26T17:47:37.528Z"
+    },
+    {
+      "id": "bw-init-1",
+      "weight": 80,
+      "date": "2025-01-18",
+      "time": "08:05",
+      "notes": "Redovno merenje telesne težine",
+      "createdAt": "2025-01-18T08:05:00Z"
+    }
+  ]
+}
