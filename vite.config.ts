@@ -5,11 +5,21 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    publicDir: 'public',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),
+        react: path.resolve(import.meta.dirname, 'node_modules/react'),
+        'react-dom': path.resolve(import.meta.dirname, 'node_modules/react-dom'),
       },
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    },
+    build: {
+      copyPublicDir: true,
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

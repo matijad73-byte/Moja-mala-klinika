@@ -268,7 +268,7 @@ export const ReportsList: React.FC<ReportsListProps> = ({
                             param.status !== 'normal' ? 'text-rose-600' : 'text-slate-900'
                           }`}
                         >
-                          {param.value}
+                          {param.textValue || param.value}
                         </td>
                         <td className="py-3 px-3 text-slate-500 font-medium">{param.unit}</td>
                         <td className="py-3 px-3 text-slate-600 font-mono text-[11px]">

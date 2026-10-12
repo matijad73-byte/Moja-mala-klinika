@@ -147,6 +147,139 @@ export function getCanonicalParameter(
   const norm = normalizeString(rawName);
   const normAlias = normalizeString(rawAlias || '');
 
+  // 0. Urin i sediment urina: ako je parametar pod kategorijom Urin ili naziv sadrži urin/sediment
+  // Obezbeđuje da parametri urina (Leukociti, Eritrociti, Glukoza, Proteini...) ne prepišu istoimene parametre iz krvi!
+  if (rawCategory === 'Urin' || norm.includes('urin') || norm.includes('sediment')) {
+    if (norm.includes('leukocit')) {
+      return {
+        canonicalKey: 'urin_leukociti',
+        name: 'Leukociti (urin)',
+        alias: 'LEU (u)',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('eritrocit')) {
+      return {
+        canonicalKey: 'urin_eritrociti',
+        name: 'Eritrociti (urin)',
+        alias: 'ERY (u)',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('glukoz')) {
+      return {
+        canonicalKey: 'urin_glukoza',
+        name: 'Glukoza (urin)',
+        alias: 'GLU (u)',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('protein') || norm.includes('belancevin') || norm.includes('bjelancevin')) {
+      return {
+        canonicalKey: 'urin_proteini',
+        name: 'Proteini (urin)',
+        alias: 'PRO (u)',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('bilirubin')) {
+      return {
+        canonicalKey: 'urin_bilirubin',
+        name: 'Bilirubin (urin)',
+        alias: 'BIL (u)',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('urobilinogen')) {
+      return {
+        canonicalKey: 'urin_urobilinogen',
+        name: 'Urobilinogen (urin)',
+        alias: 'UBG',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('keton') || norm.includes('aceton')) {
+      return {
+        canonicalKey: 'urin_ketoni',
+        name: 'Ketoni (urin)',
+        alias: 'KET',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('nitrit')) {
+      return {
+        canonicalKey: 'urin_nitriti',
+        name: 'Nitriti (urin)',
+        alias: 'NIT',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('specificna') || norm.includes('specifična') || norm.includes('gustin') || norm.includes('tezina') || norm.includes('težina')) {
+      return {
+        canonicalKey: 'urin_specificna_tezina',
+        name: 'Specifična težina (urin)',
+        alias: 'SG',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('reakcija') || norm === 'ph' || norm.includes('ph')) {
+      return {
+        canonicalKey: 'urin_ph',
+        name: 'Reakcija (pH urina)',
+        alias: 'pH',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('izgled')) {
+      return {
+        canonicalKey: 'urin_izgled',
+        name: 'Izgled urina',
+        alias: 'Izgled',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('boja')) {
+      return {
+        canonicalKey: 'urin_boja',
+        name: 'Boja urina',
+        alias: 'Boja',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('bakterij')) {
+      return {
+        canonicalKey: 'urin_bakterije',
+        name: 'Bakterije (urin)',
+        alias: 'Bakt',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('epitel')) {
+      return {
+        canonicalKey: 'urin_epitelne_celije',
+        name: 'Epitelne ćelije (urin)',
+        alias: 'Epitel',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('kristal') || norm.includes('oksalat')) {
+      return {
+        canonicalKey: 'urin_kristali',
+        name: 'Kristali (urin)',
+        alias: 'Kristali',
+        category: 'Urin',
+      };
+    }
+    if (norm.includes('sluz') || norm.includes('mucus')) {
+      return {
+        canonicalKey: 'urin_sluz',
+        name: 'Sluz (urin)',
+        alias: 'Sluz',
+        category: 'Urin',
+      };
+    }
+  }
+
   // 1. Non-HDL Cholesterol (MUST be checked before HDL to prevent partial match)
   if (
     norm.includes('non-hdl') ||
@@ -950,6 +1083,7 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
           date: report.date,
           formattedDate,
           value: param.value,
+          textValue: param.textValue,
           unit: param.unit,
           status: accurateStatus,
           reportId: report.id,

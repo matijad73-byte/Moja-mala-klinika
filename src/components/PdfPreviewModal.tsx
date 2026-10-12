@@ -185,7 +185,7 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                             param.status !== 'normal' ? 'text-rose-600' : 'text-slate-900'
                           }`}
                         >
-                          {param.value}
+                          {param.textValue || param.value}
                         </td>
                         <td className="py-2 px-3 text-slate-500">{param.unit}</td>
                         <td className="py-2 px-3 text-slate-600 font-mono text-[11px]">

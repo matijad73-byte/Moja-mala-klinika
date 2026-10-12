@@ -90,7 +90,17 @@ export function usePWAInstall() {
       mediaQuery.addEventListener('change', handleMediaChange);
     }
 
+    // Periodic check during the first 6 seconds in case beforeinstallprompt fired before or during mount
+    const pollInterval = setInterval(() => {
+      if ((window as any).__deferredPwaPrompt && !deferredPrompt) {
+        setDeferredPrompt((window as any).__deferredPwaPrompt);
+      }
+    }, 400);
+    const stopPollTimer = setTimeout(() => clearInterval(pollInterval), 6000);
+
     return () => {
+      clearInterval(pollInterval);
+      clearTimeout(stopPollTimer);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('pwa-prompt-available', handlePromptAvailable);
       window.removeEventListener('appinstalled', handleAppInstalled);
@@ -98,7 +108,7 @@ export function usePWAInstall() {
         mediaQuery.removeEventListener('change', handleMediaChange);
       }
     };
-  }, []);
+  }, [deferredPrompt]);
 
   const install = useCallback(async (): Promise<boolean> => {
     // If prompt is saved, trigger it

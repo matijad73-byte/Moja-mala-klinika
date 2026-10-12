@@ -1,6 +1,6 @@
 import { LabReport } from "../types";
 
-// Kompletna hronološka arhiva laboratorijskih nalaza pacijenta (2017 - 2025)
+// Kompletna hronološka arhiva laboratorijskih nalaza pacijenta (2017 - 2026)
 // Sadrži potpunu hronologiju po mesecima sa klinički verifikovanim zbirom lipidnih frakcija:
 // Ukupan Holesterol = HDL + LDL + Trigliceridi / 2.2
 export const FULL_30_LAB_REPORTS: LabReport[] = [

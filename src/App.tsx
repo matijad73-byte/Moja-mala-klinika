@@ -171,6 +171,8 @@ export default function App() {
   const [isPrintReportModalOpen, setIsPrintReportModalOpen] = useState(false);
   const [isBloodPressureModalOpen, setIsBloodPressureModalOpen] = useState(false);
   const [isBodyWeightModalOpen, setIsBodyWeightModalOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isAppExited, setIsAppExited] = useState(false);
 
   // Persistent Health Metrics (Blood Pressure & Body Weight)
   const [bloodPressureRecords, setBloodPressureRecords] = useState<BloodPressureRecord[]>(() => {
@@ -440,10 +442,6 @@ export default function App() {
     }
     return [];
   }, [analysisDb.parameterTrends, activeView, reports]);
-
-  // Confirmation & exit states
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
-  const [isAppExited, setIsAppExited] = useState(false);
 
   // Direktni izlaz iz aplikacije i zatvaranje prozora/aplikacije bez međupromptovanja (Ostani/Izađi)
   const handleExitApplication = () => {

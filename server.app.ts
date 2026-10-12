@@ -16,6 +16,17 @@ const PORT = 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Serve static assets from public folder immediately with correct MIME types
+app.use(express.static(path.join(process.cwd(), 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('manifest.json')) {
+      res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+  }
+}));
+
 // In-memory token store for OneDrive session
 let currentOneDriveToken: {
   accessToken?: string;
@@ -2441,14 +2452,15 @@ const STATIC_PWA_MANIFEST = {
   ],
 };
 
-// Explicit PWA Endpoints for guaranteed installability and correct JSON headers
-app.get(['/manifest.webmanifest', '/manifest.json'], (req: Request, res: Response) => {
+// Explicit PWA route for /manifest.json with required header defined before any catch-all / SPA routes
+app.get('/manifest.json', (_req: Request, res: Response) => {
+  const pubPath = path.join(process.cwd(), 'public', 'manifest.json');
+  const distPath = path.join(process.cwd(), 'dist', 'manifest.json');
+
   res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'public, max-age=3600');
-  const targetFile = req.path.endsWith('.json') ? 'manifest.json' : 'manifest.webmanifest';
-  const pubPath = path.join(process.cwd(), 'public', targetFile);
-  const distPath = path.join(process.cwd(), 'dist', targetFile);
+
   if (fs.existsSync(pubPath)) {
     return res.sendFile(pubPath);
   }
@@ -2483,11 +2495,49 @@ async function start() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    // Guard against Vite SPA middleware returning HTML for manifest or JSON files
+    app.use((req: Request, res: Response, next) => {
+      if (req.path === '/manifest.json') {
+        const pubManifest = path.join(process.cwd(), 'public', 'manifest.json');
+        if (fs.existsSync(pubManifest)) {
+          res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          return res.sendFile(pubManifest);
+        }
+      }
+      if (req.path.endsWith('.json') && !req.path.includes('/node_modules/') && !req.path.includes('/@')) {
+        const publicFile = path.join(process.cwd(), 'public', req.path.replace(/^\//, ''));
+        if (fs.existsSync(publicFile)) {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.sendFile(publicFile);
+        }
+        return res.status(404).type('application/json').send(JSON.stringify({ error: 'File not found' }));
+      }
+      next();
+    });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    // SPA catch-all route - defined AFTER all static & manifest routes
     app.get('*', (req: Request, res: Response) => {
+      if (req.path === '/manifest.json') {
+        const pubManifest = path.join(process.cwd(), 'public', 'manifest.json');
+        if (fs.existsSync(pubManifest)) {
+          res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+          return res.sendFile(pubManifest);
+        }
+        const distManifest = path.join(distPath, 'manifest.json');
+        if (fs.existsSync(distManifest)) {
+          res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+          return res.sendFile(distManifest);
+        }
+        return res.status(404).type('application/json').send(JSON.stringify({ error: 'Manifest not found' }));
+      }
+      // Prevent HTML fallback on missing JSON or static assets
+      if (req.path.endsWith('.json')) {
+        return res.status(404).type('application/json').send(JSON.stringify({ error: 'File not found' }));
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

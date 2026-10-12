@@ -112,8 +112,16 @@ export function parseDateToISO(rawVal: any): string | null {
   let str = String(rawVal).trim();
   if (!str) return null;
 
+  // Strict check: numbers or report identifiers (e.g. "Izvestaj 1", "6.8", "20") are NOT dates!
+  if (/^(?:izve[sš]taj|nalaz|r\.?\s*br\.?)\s*\d+$/i.test(str)) {
+    return null;
+  }
+  if (/^-?\d+(?:\.\d+)?$/.test(str)) {
+    return null;
+  }
+
   // Remove common prefixes/suffixes like "Datum:", "Nalaz", "od", "god.", "godina", "g."
-  str = str.replace(/^(datum|nalaz|kontrola|od|izvestaj)\s*:?\s*/i, '');
+  str = str.replace(/^(datum|kontrola|od)\s*:?\s*/i, '');
   str = str.replace(/\b(god|godina|g)\.?$/i, '').trim();
 
   // Format 1: ISO YYYY-MM-DD (with optional spaces)
@@ -169,18 +177,17 @@ export function parseDateToISO(rawVal: any): string | null {
   }
 
   // Format 5: Month-Year format: MM/YYYY or MM.YYYY or MM/YY or MM.YY
-  const myMatch = str.match(/\b(\d{1,2})\s*[./\-]\s*(\d{2,4})\b/);
+  const myMatch = str.match(/\b(\d{1,2})\s*[./\-]\s*(\d{4})\b/);
   if (myMatch) {
     const m = myMatch[1].padStart(2, '0');
-    let yNum = parseInt(myMatch[2], 10);
-    if (yNum < 100) yNum = yNum < 70 ? 2000 + yNum : 1900 + yNum;
+    const yNum = parseInt(myMatch[2], 10);
     const mNum = parseInt(m, 10);
     if (mNum >= 1 && mNum <= 12) {
       return `${yNum}-${m}-01`;
     }
   }
 
-  // Format 6: Month name + Year: "maj 2021", "jun 2022", "jan 24"
+  // Format 6: Month name + Year: "maj 2021", "jun 2022", "januar 2017."
   const wordYearMatch = str.match(/\b([a-žA-Ž]{3,})\s*[./\-\s]\s*(\d{2,4})\b/);
   if (wordYearMatch) {
     const wordKey = wordYearMatch[1].toLowerCase();
@@ -190,15 +197,6 @@ export function parseDateToISO(rawVal: any): string | null {
       if (yNum < 100) yNum = yNum < 70 ? 2000 + yNum : 1900 + yNum;
       return `${yNum}-${String(mNum).padStart(2, '0')}-01`;
     }
-  }
-
-  // Try standard Date parsing
-  const parsed = new Date(str);
-  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1990 && parsed.getFullYear() < 2100) {
-    const py = parsed.getFullYear();
-    const pm = String(parsed.getMonth() + 1).padStart(2, '0');
-    const pd = String(parsed.getDate()).padStart(2, '0');
-    return `${py}-${pm}-${pd}`;
   }
 
   return null;
@@ -543,7 +541,7 @@ function detectOrientation(grid: any[][]): 'horizontal_dates' | 'vertical_dates'
   const keyParams = ['glukoza', 'holesterol', 'hdl', 'ldl', 'triglicerid', 'leukocit', 'eritrocit', 'hemoglobin', 'ast', 'alt', 'ggt', 'urea', 'kreatinin', 'crp', 'fe', 'gvozdje', 'trombocit'];
   let paramNamesInCol0 = 0;
   let paramNamesInCol1 = 0;
-  for (let r = 0; r < Math.min(grid.length, 35); r++) {
+  for (let r = 0; r < Math.min(grid.length, 120); r++) {
     const c0 = String(grid[r]?.[0] || '').toLowerCase().trim();
     const c1 = String(grid[r]?.[1] || '').toLowerCase().trim();
     if (keyParams.some((k) => c0.includes(k))) paramNamesInCol0++;
@@ -562,7 +560,7 @@ function detectOrientation(grid: any[][]): 'horizontal_dates' | 'vertical_dates'
 
   // 4. Check for dates across columns in Row 0, 1, or 2 (Horizontal Layout)
   let datesInRow0 = 0;
-  for (let c = 1; c < Math.min(row0.length, 60); c++) {
+  for (let c = 1; c < row0.length; c++) {
     if (parseDateToISO(row0[c])) datesInRow0++;
   }
   if (datesInRow0 >= 1) {
@@ -571,7 +569,7 @@ function detectOrientation(grid: any[][]): 'horizontal_dates' | 'vertical_dates'
 
   const row1 = grid[1] || [];
   let datesInRow1 = 0;
-  for (let c = 1; c < Math.min(row1.length, 60); c++) {
+  for (let c = 1; c < row1.length; c++) {
     if (parseDateToISO(row1[c])) datesInRow1++;
   }
   if (datesInRow1 >= 1) {
@@ -580,7 +578,7 @@ function detectOrientation(grid: any[][]): 'horizontal_dates' | 'vertical_dates'
 
   // 5. Check for dates down Column 0 or Column 1 (Vertical Dates Layout)
   let datesInCol0 = 0;
-  for (let r = 1; r < Math.min(grid.length, 15); r++) {
+  for (let r = 1; r < Math.min(grid.length, 30); r++) {
     if (parseDateToISO(grid[r]?.[0])) datesInCol0++;
   }
   if (datesInCol0 >= 2) {
@@ -640,10 +638,31 @@ function isCategoryHeader(text: string): ParameterCategory | null {
   if (lower.startsWith('zapalj') || lower.includes('inflam')) {
     return 'Zapaljenski markeri';
   }
-  if (lower.startsWith('urin') || lower.includes('mokrać') || lower.includes('mokrac') || lower.includes('sediment')) {
+  if (lower.startsWith('urin') || lower.includes('sediment') || (lower.includes('mokrac') && !lower.includes('kiselina'))) {
     return 'Urin';
   }
   return null;
+}
+
+/**
+ * Maps any section / category string into a standardized ParameterCategory
+ */
+function mapToCategory(text: string): ParameterCategory {
+  if (!text) return 'Biohemija';
+  const cat = isCategoryHeader(text);
+  if (cat) return cat;
+
+  const l = text.toLowerCase().trim();
+  if (l.includes('hematolog') || l.includes('krvn') || l.includes('koagul')) return 'Hematologija';
+  if (l.includes('lipid') || l.includes('masno')) return 'Lipidni status';
+  if (l.includes('enzim') || l.includes('jetr')) return 'Enzimi jetre';
+  if (l.includes('bubreg') || l.includes('bubrež') || l.includes('mokracna kiselina')) return 'Bubrežna funkcija';
+  if (l.includes('elektrolit') || l.includes('mineral')) return 'Elektroliti';
+  if (l.includes('hormon') || l.includes('stit') || l.includes('tiroid')) return 'Hormoni';
+  if (l.includes('zapalj') || l.includes('inflam') || l.includes('crp')) return 'Zapaljenski markeri';
+  if (l.includes('urin') || l.includes('mokrac') || l.includes('sediment')) return 'Urin';
+  if (l.includes('biohemij') || l.includes('glikoreg') || l.includes('protein') || l.includes('vitamin')) return 'Biohemija';
+  return 'Ostalo';
 }
 
 /**
@@ -669,22 +688,22 @@ function isIgnoredRow(text: string): boolean {
   if (!text) return true;
   const l = text.toLowerCase().trim();
   if (
+    l === 'ukupno' ||
+    l === 'total' ||
+    l === 'prosek' ||
+    l === 'prosjek' ||
+    l === 'average' ||
+    l === 'mean' ||
+    l === 'min' ||
+    l === 'max' ||
+    l === 'razlika' ||
+    l === 'trend' ||
+    l === 'delta' ||
+    l === 'komentar' ||
+    l === 'zakljucak' ||
+    l === 'opis' ||
+    l === 'status' ||
     l.startsWith('napomen') ||
-    l.startsWith('ukupno') ||
-    l.startsWith('total') ||
-    l.startsWith('prosek') ||
-    l.startsWith('prosjek') ||
-    l.startsWith('average') ||
-    l.startsWith('mean') ||
-    l.startsWith('min') ||
-    l.startsWith('max') ||
-    l.startsWith('komentar') ||
-    l.startsWith('razlika') ||
-    l.startsWith('trend') ||
-    l.startsWith('delta') ||
-    l.startsWith('opis') ||
-    l.startsWith('zakljucak') ||
-    l.startsWith('status') ||
     l.startsWith('lekar') ||
     l.startsWith('potpis') ||
     l.startsWith('tehnicar') ||
@@ -744,90 +763,133 @@ function parseHorizontalDatesSheet(
   }
   if (maxCol < 2 || grid.length < 2) return;
 
-  // 1. Identifikacija prve kolone sa izveštajima (firstDataCol)
-  // Prve 3 kolone (A, B, C) definišu kontekst parametra (Parametar/Analiza, Referentne vrednosti, Jedinice)
-  // Kolone od D nadalje (indeks 3..) predstavljaju pojedinačne medicinske izveštaje
+  // 1. Detekcija rasporeda kolona prema strukturi:
+  // Kolona A sadrži redne brojeve parametara (1, 2, 3...) i na samom kraju reč "END"
+  let hasParamNumberCol = false;
+  let paramNumberCol = -1;
+  let paramNameCol = 0;
+  let refCol = 1;
+  let unitCol = 2;
   let firstDataCol = 3;
-  if (firstDataCol >= maxCol) {
-    firstDataCol = -1;
-    for (let c = 1; c < maxCol; c++) {
-      let hasDateInHeader = false;
-      for (let r = 0; r < Math.min(grid.length, 5); r++) {
-        if (parseDateToISO(grid[r]?.[c]) !== null) {
-          hasDateInHeader = true;
-          break;
-        }
-      }
-      if (hasDateInHeader) {
-        firstDataCol = c;
-        break;
-      }
+
+  // Skeniramo sve redove: ako Kolona A ima redne brojeve (1, 2, ...), "Broj", "SEKCIJA" ili "END" na dnu,
+  // onda Kolona A definitivno predstavlja redni broj parametra!
+  let col0NumbersCount = 0;
+  let col0HasEnd = false;
+  for (let r = 0; r < grid.length; r++) {
+    const val0 = String(grid[r]?.[0] || '').trim();
+    const val0Upper = val0.toUpperCase();
+    if (val0Upper === 'END' || val0Upper === 'END.' || val0Upper.replace(/[^A-Z]/g, '') === 'END') {
+      col0HasEnd = true;
     }
-    if (firstDataCol === -1) firstDataCol = Math.min(1, maxCol - 1);
+    const cleanNum = val0.replace(/\.$/, '');
+    if (/^[1-9]\d*$/.test(cleanNum)) {
+      col0NumbersCount++;
+    }
+    if (/^(broj|r\.?\s*br\.?|rb)\b/i.test(val0.toLowerCase()) || /^sekcija\b/i.test(val0.toLowerCase())) {
+      col0NumbersCount++;
+    }
   }
 
-  // 2. Pronalaženje redova zaglavlja za izveštaje (Identifikator, Period, Datum)
-  // Standardno prema specifikaciji:
-  // Red 2 (indeks 1): Jedinstveni identifikator (Izvestaj 1, Izvestaj 2, ...)
-  // Red 3 (indeks 2): Period (npr. "Januar 2017.")
-  // Red 4 (indeks 3): Tačan datum nalaza (npr. "26.01.2017.")
-  // Redovi 5 do kraja (indeks 4..): Izmerene vrednosti parametara
-  let repIdRow = -1;
-  let periodRow = -1;
-  let dateRow = -1;
+  if (col0HasEnd || col0NumbersCount >= 2) {
+    hasParamNumberCol = true;
+    paramNumberCol = 0;
+    paramNameCol = 1;
+    refCol = 2;
+    unitCol = 3;
+    firstDataCol = 4;
+  }
 
-  for (let r = 0; r < Math.min(grid.length, 6); r++) {
+  // 2. Zaglavlje i datumi:
+  // Skeniramo prvih 15 redova za datume izveštaja i oznake
+  let repIdRow = 1;
+  let periodRow = 2;
+  let dateRow = 3;
+
+  for (let r = 0; r < Math.min(grid.length, 15); r++) {
+    const text0 = String(grid[r]?.[0] || '').toLowerCase().trim();
     let repIdHits = 0;
     let periodHits = 0;
-    let dateHits = 0;
-    for (let c = firstDataCol; c < maxCol; c++) {
+    let exactDateHits = 0;
+
+    for (let c = 1; c < maxCol; c++) {
       const val = grid[r]?.[c];
       if (val === undefined || val === null) continue;
       const strVal = String(val).trim();
       if (!strVal) continue;
 
-      if (parseReportNumberFromCell(val) !== null || /izvestaj|izveštaj|nalaz/i.test(strVal)) {
+      if (/^izve[sš]taj\s*\d+/i.test(strVal)) {
         repIdHits++;
       }
-      if (
-        /(?:januar|februar|mart|april|maj|juni?|juli?|avgust|septembar|oktobar|novembar|decembar)\s*\d{4}/i.test(strVal) ||
-        /^(?:0?[1-9]|1[0-2])\s*[./\-]\s*(?:19|20)\d{2}\.?$/.test(strVal)
-      ) {
+      if (/(?:januar|februar|mart|april|maj|juni?|juli?|avgust|septembar|oktobar|novembar|decembar)\s*\d{4}/i.test(strVal)) {
         periodHits++;
       }
-      if (parseDateToISO(val) !== null) {
-        dateHits++;
+      if (/\b\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2,4}\b/.test(strVal)) {
+        exactDateHits++;
       }
     }
 
-    if (repIdHits >= 1 && repIdRow === -1) {
+    if (repIdHits >= 2 || text0.includes('identifikator')) {
       repIdRow = r;
-    }
-    if (periodHits >= 1 && periodRow === -1 && r !== repIdRow) {
+    } else if (periodHits >= 2 || text0 === 'period') {
       periodRow = r;
-    }
-    if (dateHits >= 1 && dateRow === -1 && r !== repIdRow && r !== periodRow) {
+    } else if (exactDateHits >= 2 || text0.includes('datum')) {
       dateRow = r;
     }
   }
 
-  // Određivanje startParamRow
-  let startParamRow = 4; // Excel row 5 (0-indexed 4)
-  if (repIdRow >= 0 || periodRow >= 0 || dateRow >= 0) {
-    startParamRow = Math.max(repIdRow, periodRow, dateRow) + 1;
-  } else {
-    // Fallback: dinamička pretraga reda sa nazivima parametara
-    const keyParamSnippets = ['glukoz', 'holest', 'leukoc', 'urea', 'kreatinin', 'ast', 'alt', 'crp', 'eritroc'];
+  // Dinamičko pronalaženje prve kolone sa podacima (kolona sa datumom ili izveštajem)
+  for (let c = 2; c < maxCol; c++) {
+    let hasDateOrRep = false;
     for (let r = 0; r < Math.min(grid.length, 10); r++) {
-      const text0 = String(grid[r]?.[0] || '').toLowerCase().trim();
-      if (keyParamSnippets.some((k) => text0.includes(k))) {
-        startParamRow = r;
+      const val = grid[r]?.[c];
+      if (parseDateToISO(val) !== null || parseReportNumberFromCell(val) !== null) {
+        hasDateOrRep = true;
+        break;
+      }
+      const s = String(val || '').trim();
+      if (/^izve[sš]taj\s*\d+/i.test(s)) {
+        hasDateOrRep = true;
         break;
       }
     }
+    if (hasDateOrRep) {
+      firstDataCol = c;
+      if (c === 4) {
+        paramNameCol = 1;
+        refCol = 2;
+        unitCol = 3;
+      } else if (c === 3) {
+        paramNameCol = 1;
+        refCol = 2;
+        unitCol = 2;
+      }
+      break;
+    }
   }
 
-  // 3. Preuzimanje SVIH kolona izveštaja od firstDataCol do maxCol - 1
+  // Pronalaženje reda od koga kreću analize / sekcije (prvi red sa parametrom ili sekcijom)
+  // U Koloni A u redu 5 (indeks 4) je prva sekcija parametara, a od reda 6 (indeks 5) su numerisani parametri.
+  let startParamRow = 4; // Excel Red 5 (0-indeksirano je 4)
+  for (let r = 1; r < Math.min(grid.length, 25); r++) {
+    const c0 = String(grid[r]?.[0] || '').trim();
+    const c0Clean = c0.replace(/\.$/, '').trim();
+    const c0Upper = c0.toUpperCase();
+    const c1 = String(grid[r]?.[paramNameCol] || '').trim();
+
+    if (
+      c0Upper === 'SEKCIJA' ||
+      c0Upper.startsWith('SEKCIJA') ||
+      isCategoryHeader(c0) !== null ||
+      isCategoryHeader(c1) !== null ||
+      c0Clean === '1'
+    ) {
+      startParamRow = r;
+      break;
+    }
+  }
+
+  // 3. Preuzimanje SVIH kolona izveštaja (počev od firstDataCol nadalje)
   const reportColumns: {
     colIdx: number;
     repNum: number;
@@ -837,7 +899,6 @@ function parseHorizontalDatesSheet(
   }[] = [];
 
   for (let c = firstDataCol; c < maxCol; c++) {
-    // 1. Isključi kolone koje su zbirne statistike, proseci, komentari ili napomene
     if (isSummaryOrMetaColumn(grid, c, startParamRow)) {
       continue;
     }
@@ -846,29 +907,16 @@ function parseHorizontalDatesSheet(
     const rawPeriod = periodRow >= 0 ? grid[periodRow]?.[c] : null;
     const rawDate = dateRow >= 0 ? grid[dateRow]?.[c] : null;
 
-    // Proveri da li kolona ima eksplicitni identifikator izveštaja (Izvestaj 1, Nalaz 1, 1..)
     const repNumFromId = parseReportNumberFromCell(rawId);
     const hasExplicitId =
       repNumFromId !== null ||
       /(?:izve[sš]taj|nalaz|r\.?\s*br\.?)\s*\d*/i.test(String(rawId || ''));
 
-    // Proveri da li ima validan datum ili period
     const parsedDate = parseDateToISO(rawDate);
     const parsedPeriodDate = parseDateToISO(rawPeriod);
     const hasValidDate = parsedDate !== null || parsedPeriodDate !== null;
 
-    // Izbroj stvarna numerička laboratorijska merenja u ovoj koloni
-    let numericMeasurements = 0;
-    for (let r = startParamRow; r < grid.length; r++) {
-      if (cleanNumericValue(grid[r]?.[c]) !== null) {
-        numericMeasurements++;
-      }
-    }
-
-    // Autentična kolona izveštaja MORA:
-    // 1. Imati identifikator izveštaja ILI validan datum u zaglavlju
-    // 2. I imati najmanje 2 stvarna numerička laboratorijska merenja u redovima parametara!
-    if ((!hasExplicitId && !hasValidDate) || numericMeasurements < 2) {
+    if (!hasExplicitId && !hasValidDate) {
       continue;
     }
 
@@ -884,6 +932,7 @@ function parseHorizontalDatesSheet(
     let finalDate = parsedDate || parsedPeriodDate;
     if (!finalDate) {
       for (let r = 0; r < startParamRow; r++) {
+        if (r === repIdRow) continue;
         const d = parseDateToISO(grid[r]?.[c]);
         if (d) {
           finalDate = d;
@@ -906,53 +955,63 @@ function parseHorizontalDatesSheet(
 
   if (reportColumns.length === 0) return;
 
-  // 4. Prolazak kroz SVE redove parametara (Redovi 5 do kraja)
+  // 4. Prolazak kroz SVE redove parametara
+  // PRAVILO: Čitamo sve parametre redom sve dok u Koloni A ne naiđemo na reč "END"
+  // "END stoji samo na kraju A kolone gde se nalaze redni brojevi parametara."
   let currentCategory: ParameterCategory = 'Biohemija';
 
   for (let r = startParamRow; r < grid.length; r++) {
     const row = grid[r];
-    if (!row || row.length === 0) continue;
-
-    const col0Text = String(row[0] || '').trim();
-    if (!col0Text) continue;
-
-    // Preskoči informativne / zbirne / zaglavne redove
-    if (isIgnoredRow(col0Text)) {
+    if (!row || row.length === 0) {
+      // Prazan red u tabeli: ignorišemo ga i nastavljamo sa čitanjem sledećih redova
       continue;
     }
 
-    // Proveri da li je red sekcija/kategorija (npr. Hematologija, Biohemija)
-    const detectedCat = isCategoryHeader(col0Text);
+    // Provera Kolone A:
+    const col0Raw = row[0];
+    const col0Str = String(col0Raw === undefined || col0Raw === null ? '' : col0Raw).trim();
+    const col0Upper = col0Str.toUpperCase();
+    const col0CleanLetters = col0Upper.replace(/[^A-Z]/g, '');
 
-    // Izbroj stvarna merenja u ovom redu za očitane izveštaje
-    let rowMeasurements = 0;
-    for (const repCol of reportColumns) {
-      if (cleanNumericValue(row[repCol.colIdx]) !== null) {
-        rowMeasurements++;
+    // PRAVILO ZA KRAJ TABELE: Prekidamo SAMO ako u Koloni A naiđemo na reč "END"
+    // (END stoji samo na kraju A kolone gde se nalaze redni brojevi parametara)
+    if (col0Upper === 'END' || col0Upper === 'END.' || col0CleanLetters === 'END') {
+      break;
+    }
+
+    // Provera da li je red numerisani parametar ili sekcija/kategorija:
+    const col0CleanNum = col0Str.replace(/\.$/, '').trim();
+    const isNumberInCol0 = /^\d+$/.test(col0CleanNum);
+
+    // Ako Kolona A NIJE broj, to je sekcija/kategorija (ili prazan red):
+    // "Redovi koji označavaju sekcije/kategorije (npr. gde u Koloni A piše SEKCIJA ili naziv grupe poput HEMATOLOGIJA, BIOHEMIJA)
+    // se preskaču kao parametri, a njihovo ime se koristi za postavljanje trenutne kategorije."
+    if (!isNumberInCol0) {
+      const rawColName = String(row[paramNameCol] || '').trim();
+      const sectionText = col0Upper.startsWith('SEKCIJA')
+        ? (rawColName || col0Str.replace(/^SEKCIJA\s*[:\-]?\s*/i, '').trim())
+        : (col0Str || rawColName);
+
+      if (sectionText) {
+        const cat = mapToCategory(sectionText);
+        if (cat) {
+          currentCategory = cat;
+        }
       }
-    }
-
-    // Ako red nema numeričkih merenja ni u jednom izveštaju:
-    // To je naslov sekcije ili prazan red - NIKADA ne kreirati parametar!
-    if (rowMeasurements === 0) {
-      if (detectedCat) {
-        currentCategory = detectedCat;
-      }
+      // Redovi sa sekcijama/kategorijama se preskaču kao parametri!
       continue;
     }
 
-    // Ako je eksplicitni naslov kategorije, postavi trenutnu kategoriju i preskoči
-    if (detectedCat && (col0Text.toUpperCase() === col0Text || col0Text.length <= 25)) {
-      currentCategory = detectedCat;
-      continue;
-    }
+    // Odavde je red SIGURNO numerisani laboratorijski parametar (1..69)
+    const rawColName = String(row[paramNameCol] || '').trim();
+    const rawParamName = rawColName || col0Str;
+    if (!rawParamName) continue;
 
-    // Parametar: Kolona A = Naziv, Kolona B = Ref. vrednosti, Kolona C = Jedinice
-    const rawParamName = col0Text;
-    const refColVal = String(row[1] || '').trim();
-    const unitColVal = String(row[2] || '').trim();
+    const refColVal = String(row[refCol] || '').trim();
+    const unitColVal = String(row[unitCol] || '').trim();
 
-    const canon = getCanonicalParameter(rawParamName);
+    // Konkretni laboratorijski parametar
+    const canon = getCanonicalParameter(rawParamName, undefined, currentCategory);
     const defaults = CLINICAL_DEFAULTS[canon.canonicalKey];
 
     const refParsed = parseRefLimits(refColVal);
@@ -961,45 +1020,52 @@ function parseHorizontalDatesSheet(
     const refText = refParsed.refText || refColVal || defaults?.refText || '-';
     const unit = unitColVal || defaults?.unit || 'mmol/L';
 
-    // Očitavanje izmerene vrednosti za svaki pojedinačni izveštaj (Kolone D..W)
+    // Očitavanje izmerenih vrednosti za sve prepoznate izveštaje
     for (const repCol of reportColumns) {
       const rawVal = row[repCol.colIdx];
-      if (rawVal === undefined || rawVal === null) continue;
+      const strVal = String(rawVal === undefined || rawVal === null ? '' : rawVal).trim();
+      const lowerVal = strVal.toLowerCase();
 
-      const strVal = String(rawVal).trim().toLowerCase();
-      // Vrijednost "nije rađena analiza" označava nedostajući podatak za taj datum
-      if (
+      // Provera da li analiza nije rađena ili nema podatka u ovom izveštaju
+      const isUnmeasured =
         !strVal ||
-        strVal === '-' ||
-        strVal === '/' ||
-        strVal === 'n/a' ||
-        strVal === 'na' ||
-        strVal.includes('nije rađen') ||
-        strVal.includes('nije radjen') ||
-        strVal.includes('nije rađeno') ||
-        strVal.includes('nije radjeno') ||
-        strVal.includes('nema podatak') ||
-        strVal.includes('nedostaj')
-      ) {
-        continue;
-      }
+        lowerVal === '-' ||
+        lowerVal === '/' ||
+        lowerVal === 'n/a' ||
+        lowerVal === 'na' ||
+        lowerVal.includes('nije rađen') ||
+        lowerVal.includes('nije radjen') ||
+        lowerVal.includes('nije rađeno') ||
+        lowerVal.includes('nije radjeno') ||
+        lowerVal.includes('nema podatak') ||
+        lowerVal.includes('nedostaj');
 
-      const numVal = cleanNumericValue(rawVal);
-      if (numVal === null) continue;
+      const numVal = isUnmeasured ? null : cleanNumericValue(rawVal);
+      const isPureText = !isUnmeasured && numVal === null && strVal.length > 0;
 
-      const status: ParameterStatus = calculateParameterStatus(numVal, refMin, refMax, canon.canonicalKey);
+      const finalNumericVal = numVal !== null ? numVal : 0;
+      const textVal = isUnmeasured ? (strVal || '—') : (isPureText ? strVal : undefined);
+
+      const status: ParameterStatus =
+        numVal !== null
+          ? calculateParameterStatus(numVal, refMin, refMax, canon.canonicalKey)
+          : 'normal';
+
+      const paramDisplayName = canon.name || rawParamName;
 
       const parameter: LabParameter = {
         id: `param-${canon.canonicalKey}-${repCol.dateStr}-col${repCol.colIdx}-r${r}`,
-        name: canon.name,
+        name: paramDisplayName,
         alias: canon.alias,
         category: (currentCategory as ParameterCategory) || canon.category || defaults?.category || 'Biohemija',
-        value: numVal,
+        value: finalNumericVal,
+        textValue: textVal,
         unit: unit,
         refMin,
         refMax,
         refText,
         status,
+        notes: textVal ? `Nalaz: ${textVal}` : undefined,
       };
 
       const reportKey = `${sheetName}_col_${repCol.colIdx}`;
@@ -1026,12 +1092,13 @@ function parseHorizontalDatesSheet(
         outMap.set(reportKey, report);
       }
 
-      const existingIdx = report.parameters.findIndex((p) => p.name === parameter.name);
-      if (existingIdx >= 0) {
-        report.parameters[existingIdx] = parameter;
-      } else {
-        report.parameters.push(parameter);
+      // SVI numerisani parametri se striktno čuvaju bez gubitaka!
+      // Ako u istom izveštaju već postoji parametar sa istim prikaznim imenom, razlikujemo ih:
+      const nameExists = report.parameters.some((p) => p.name === parameter.name);
+      if (nameExists) {
+        parameter.name = rawParamName !== parameter.name ? rawParamName : `${parameter.name} (${currentCategory})`;
       }
+      report.parameters.push(parameter);
     }
   }
 }
@@ -1259,6 +1326,23 @@ export function formatSerbianDateForExcel(dateStr: string): string {
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     return `${parts[2]}.${parts[1]}.${parts[0]}.`;
+  }
+  return dateStr;
+}
+
+export function formatSerbianMonth(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const months = [
+      'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
+      'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
+    ];
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${months[monthIndex]} ${year}.`;
+    }
   }
   return dateStr;
 }
@@ -1619,8 +1703,16 @@ export function appendReportToExcelDatabase(
     const placedParams = new Set<string>();
     const startParamRow = Math.max(reportNumRowIdx + 1, dateRowIdx + 1, 2);
 
+    let endRowIdx = -1;
     for (let r = startParamRow; r < grid.length; r++) {
-      const paramNameInRow = String(grid[r][0] || '').trim();
+      const col0 = String(grid[r][0] || '').trim().toUpperCase();
+      if (col0 === 'END' || col0 === 'END.' || col0.replace(/[^A-Z]/g, '') === 'END') {
+        endRowIdx = r;
+        break;
+      }
+
+      // Provera naziva parametra: u koloni 1 (ako kolona 0 sadrži brojeve) ili koloni 0
+      const paramNameInRow = String(grid[r][1] || grid[r][0] || '').trim();
       if (!paramNameInRow) {
         grid[r][newColIdx] = '';
         continue;
@@ -1643,7 +1735,7 @@ export function appendReportToExcelDatabase(
       }
     }
 
-    // Append any newly discovered parameters in this report as new rows at the bottom
+    // Dodavanje novih parametara pre END reda (ili na kraju ako END red ne postoji)
     for (const p of preparedReport.parameters) {
       if (!placedParams.has(p.name)) {
         const newRow: any[] = new Array(newColIdx + 1).fill('');
@@ -1651,7 +1743,12 @@ export function appendReportToExcelDatabase(
         newRow[1] = p.unit || '';
         newRow[2] = p.refText || '-';
         newRow[newColIdx] = p.value;
-        grid.push(newRow);
+        if (endRowIdx !== -1) {
+          grid.splice(endRowIdx, 0, newRow);
+          endRowIdx++;
+        } else {
+          grid.push(newRow);
+        }
         placedParams.add(p.name);
       }
     }

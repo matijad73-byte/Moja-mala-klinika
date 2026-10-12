@@ -10,6 +10,9 @@ import {
   AlertTriangle,
   ExternalLink,
   Compass,
+  Copy,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -38,7 +41,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
 
   const [isOpen, setIsOpen] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);
-  const [attemptedNative, setAttemptedNative] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Auto-open on mobile / in-app browser unless already installed as standalone PWA
   useEffect(() => {
@@ -47,10 +50,8 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
       return;
     }
 
-    // Auto-open on phone / tablet / in-app browser (Viber, WhatsApp, etc.)
     const timer = setTimeout(() => {
       const isDismissed = sessionStorage.getItem('pwa_prompt_dismissed') === 'true';
-      // Automatically pop up if not dismissed this session, or if forceOpen is true
       if (!isDismissed || forceOpen) {
         setIsOpen(true);
       }
@@ -59,7 +60,6 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
     return () => clearTimeout(timer);
   }, [isStandalone, forceOpen, isMobile, isInAppBrowser, isViber]);
 
-  // When forceOpen prop changes to true
   useEffect(() => {
     if (forceOpen) {
       setIsOpen(true);
@@ -67,7 +67,6 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
     }
   }, [forceOpen]);
 
-  // If running in standalone mode (already installed and opened from home screen icon), don't show
   if (isStandalone || (!forceOpen && isInstalled)) {
     return null;
   }
@@ -83,7 +82,6 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
   };
 
   const handleInstallClick = async () => {
-    setAttemptedNative(true);
     if (isInstallable) {
       const outcome = await install();
       if (outcome) {
@@ -96,9 +94,23 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
         return;
       }
     }
-    // If native prompt wasn't available or was dismissed, inform user
+
+    // If native prompt was not yet fired by browser
     if (onNotify) {
-      onNotify('Pratite uputstvo u nastavku za dodavanje aplikacije na početni ekran.');
+      onNotify('Pratite korake za dodavanje aplikacije na početni ekran.');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopiedLink(true);
+        if (onNotify) onNotify('Link aplikacije je kopiran u privremenu memoriju!');
+        setTimeout(() => setCopiedLink(false), 2500);
+      }
+    } catch {
+      // Fallback
     }
   };
 
@@ -141,7 +153,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-200 mt-0.5">
-                Moja mala klinika – Laboratorijski nalazi i zdravstveni trendovi
+                Moja mala klinika – Brz pristup sa početnog ekrana telefona
               </p>
             </div>
           </div>
@@ -154,7 +166,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
               <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
               <div>
                 <strong className="block text-sm text-white">Uspešno instalirano!</strong>
-                <span>Aplikacija je dodata na vaš početni ekran. Možete je otvoriti direktno sa ekrana telefona kao i svaku drugu aplikaciju.</span>
+                <span>Aplikacija je dodata na vaš početni ekran. Možete je pokrenuti direktno kao i svaku drugu aplikaciju.</span>
               </div>
             </div>
           ) : (
@@ -164,56 +176,64 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                 <div className="p-4 bg-amber-950/40 border-2 border-amber-500/80 rounded-2xl text-amber-200 text-xs space-y-2.5 shadow-xs">
                   <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-                    <span>Otvorili ste link iz Vibera!</span>
+                    <span>Otvorili ste link iz Vibera ili druge aplikacije!</span>
                   </div>
                   <p className="text-amber-200 leading-relaxed">
-                    Viber otvara linkove u svom privremenom pregledaču koji ne dozvoljava direktno čuvanje aplikacije na ekran. Za instalaciju, otvorite link u <strong>Google Chrome-u</strong> (ili Safariju).
+                    Ugrađeni pregledač u Viberu blokira instalaciju aplikacija na sistem. Da biste instalirali aplikaciju, otvorite link u <strong>Google Chrome-u</strong> (ili Safariju).
                   </p>
 
                   {/* Dugme za direktan prelazak u Chrome na Androidu */}
                   {isAndroid && (
                     <a
                       href={chromeIntentUrl}
-                      className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors text-center"
+                      className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors text-center cursor-pointer"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      <span>Otvori direktno u Google Chrome-u</span>
+                      <span>Otvori direktno u Google Chrome pregledaču</span>
                     </a>
                   )}
 
                   <div className="font-semibold text-amber-200 bg-amber-900/50 p-2.5 rounded-xl border border-amber-700/60 flex items-start gap-2">
                     <MoreVertical className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <span>
-                      U Viberu dodirnite tri tačkice u gornjem desnom uglu <strong>(⋮)</strong> i izaberite <strong>„Otvori u Chrome-u”</strong> (ili Safariju).
+                      Ili u Viberu dodirnite tri tačkice u gornjem desnom uglu <strong>(⋮)</strong> i izaberite <strong>„Otvori u Chrome-u”</strong> (Open in Chrome).
                     </span>
                   </div>
                 </div>
               )}
 
-              {/* GLAVNO DUGME ZA INSTALACIJU NA TELEFON */}
-              <button
-                id="pwa-prompt-install-now-btn"
-                onClick={handleInstallClick}
-                className="w-full py-4 px-5 rounded-2xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 text-white font-extrabold text-base flex items-center justify-center gap-2.5 shadow-lg shadow-teal-600/30 transition-all cursor-pointer group"
-              >
-                <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span>Instaliraj aplikaciju na telefon</span>
-              </button>
+              {/* AKO PREGLEDAČ DOZVOLJAVA JEDNIM DODIROM (Native beforeinstallprompt) */}
+              {isInstallable ? (
+                <button
+                  id="pwa-prompt-install-now-btn"
+                  onClick={handleInstallClick}
+                  className="w-full py-4 px-5 rounded-2xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 text-white font-extrabold text-base flex items-center justify-center gap-2.5 shadow-lg shadow-teal-600/30 transition-all cursor-pointer group"
+                >
+                  <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span>Instaliraj sada jednim dodirom</span>
+                </button>
+              ) : null}
 
               {/* UPUTSTVO ZA ANDROID (Google Chrome) */}
               {!isIOS && (
-                <div className="bg-[#112240] border border-slate-700 p-4 rounded-2xl space-y-2.5 text-xs text-slate-300">
-                  <div className="flex items-center gap-2 font-bold text-white text-sm">
-                    <MoreVertical className="w-4 h-4 text-teal-400" />
-                    <span>Uputstvo za Android (Google Chrome):</span>
+                <div className="bg-[#112240] border border-slate-700 p-4 rounded-2xl space-y-3 text-xs text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-white text-sm">
+                      <MoreVertical className="w-4 h-4 text-teal-400" />
+                      <span>Uputstvo za Android (Google Chrome):</span>
+                    </div>
+                    <span className="bg-teal-950 text-teal-300 border border-teal-800 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      2 brza koraka
+                    </span>
                   </div>
-                  <ol className="space-y-2 text-slate-300 pl-1">
+
+                  <ol className="space-y-2.5 text-slate-300 pl-1">
                     <li className="flex items-start gap-2.5">
                       <span className="w-5 h-5 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-xs">
                         1
                       </span>
                       <span>
-                        Dodirnite meni sa tri tačkice u gornjem desnom uglu <strong>(⋮)</strong> u Google Chrome-u.
+                        Dodirnite meni sa tri tačkice u gornjem desnom uglu <strong>(⋮)</strong> u Google Chrome pregledaču.
                       </span>
                     </li>
                     <li className="flex items-start gap-2.5">
@@ -221,7 +241,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                         2
                       </span>
                       <span>
-                        Izaberite opciju <strong>„Instaliraj aplikaciju”</strong> (Install app) — ovo instalira pravu aplikaciju na ceo ekran (a ne običnu prečicu pretraživača).
+                        Izaberite opciju <strong>„Instaliraj aplikaciju”</strong> (ili „Dodaj na početni ekran” / Add to Home screen).
                       </span>
                     </li>
                     <li className="flex items-start gap-2.5">
@@ -229,21 +249,57 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                         3
                       </span>
                       <span>
-                        Potvrdite pritiskom na <strong>„Instaliraj”</strong>. Ikonica aplikacije se automatski pojavljuje na vašem telefonu!
+                        Potvrdite sa <strong>„Instaliraj”</strong>. Ikonica aplikacije se automatski pojavljuje među vašim aplikacijama na telefonu!
                       </span>
                     </li>
                   </ol>
+
+                  {/* Dugme za kopiranje linka ili otvaranje u Chrome */}
+                  <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={handleCopyLink}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span className="text-emerald-400">Link je kopiran!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 text-slate-400" />
+                          <span>Kopiraj link aplikacije</span>
+                        </>
+                      )}
+                    </button>
+
+                    {isAndroid && (
+                      <a
+                        href={chromeIntentUrl}
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors text-center cursor-pointer"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Otvori u Chrome-u</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* UPUTSTVO ZA IPHONE / IPAD (Safari) */}
               {isIOS && (
-                <div className="bg-amber-950/40 border border-amber-800 p-4 rounded-2xl space-y-2.5 text-xs text-amber-200">
-                  <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
-                    <Compass className="w-4 h-4 text-amber-400" />
-                    <span>Uputstvo za iPhone / iPad (Safari):</span>
+                <div className="bg-[#112240] border border-amber-800/80 p-4 rounded-2xl space-y-3 text-xs text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">
+                      <Compass className="w-4 h-4 text-amber-400" />
+                      <span>Uputstvo za iPhone / iPad (Safari):</span>
+                    </div>
+                    <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      Safari
+                    </span>
                   </div>
-                  <ol className="space-y-2 text-slate-300 pl-1">
+
+                  <ol className="space-y-2.5 text-slate-300 pl-1">
                     <li className="flex items-start gap-2.5">
                       <span className="w-5 h-5 rounded-full bg-amber-900 text-amber-300 font-bold flex items-center justify-center shrink-0 text-xs">
                         1
@@ -257,7 +313,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                         2
                       </span>
                       <span>
-                        U meniju izaberite <PlusSquare className="inline w-3.5 h-3.5 text-amber-300 mb-0.5" /> <strong>„Dodaj na početni ekran” (Add to Home Screen)</strong>.
+                        U meniju izaberite opciju <PlusSquare className="inline w-3.5 h-3.5 text-amber-300 mb-0.5" /> <strong>„Dodaj na početni ekran”</strong> (Add to Home Screen).
                       </span>
                     </li>
                     <li className="flex items-start gap-2.5">
@@ -265,10 +321,27 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                         3
                       </span>
                       <span>
-                        U gornjem desnom uglu pritisnite <strong>„Dodaj”</strong>. Aplikacija je spremna na vašem ekranu!
+                        U gornjem desnom uglu pritisnite <strong>„Dodaj”</strong> (Add). Ikonica aplikacije je spremna na vašem telefonu!
                       </span>
                     </li>
                   </ol>
+
+                  <button
+                    onClick={handleCopyLink}
+                    className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-400">Link je kopiran!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 text-slate-400" />
+                        <span>Kopiraj link aplikacije</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 
@@ -287,11 +360,11 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                 <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700">
                   <Download className="w-4 h-4 mx-auto mb-1 text-indigo-400" />
                   <span className="block text-[11px] font-bold text-white">Brzo</span>
-                  <span className="text-[10px] text-slate-400">Bez pretraživača</span>
+                  <span className="text-[10px] text-slate-400">Bez kucanja adrese</span>
                 </div>
               </div>
 
-              {/* Sekundarno dugme */}
+              {/* Sekundarno dugme za zatvaranje */}
               <div className="pt-1">
                 <button
                   onClick={handleClose}

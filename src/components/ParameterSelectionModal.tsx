@@ -246,14 +246,14 @@ export const ParameterSelectionModal: React.FC<ParameterSelectionModalProps> = (
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-6 py-3.5 bg-[#0a192f] border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <span>
-            Prikazano <strong className="text-slate-800">{filteredTrends.length}</strong> od{' '}
+            Prikazano <strong className="text-white">{filteredTrends.length}</strong> od{' '}
             {trends.length} parametara
           </span>
           <button
             onClick={onClose}
-            className="font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+            className="font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700"
           >
             Zatvori
           </button>
