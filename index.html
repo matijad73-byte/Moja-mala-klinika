@@ -47,33 +47,20 @@
         window.dispatchEvent(new CustomEvent('pwa-installed'));
       });
       function registerAppSW() {
-        if (window.self !== window.top) {
-          // Inside preview iframe: unregister service worker to prevent cached chunk conflicts
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-              for (var reg of registrations) {
-                reg.unregister();
-              }
-            });
-          }
-          return;
-        }
-        // Top-level window (direct browser tab or mobile phone PWA): register & update SW
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.register('/sw.js', { scope: '/' })
             .then(function(reg) {
               reg.update();
             })
             .catch(function(err) {
-              console.warn('SW registration failed:', err);
+              console.warn('SW registration info:', err);
             });
         }
       }
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      try {
         registerAppSW();
-      } else {
+      } catch (e) {
         window.addEventListener('DOMContentLoaded', registerAppSW);
-        window.addEventListener('load', registerAppSW);
       }
     </script>
   </head>

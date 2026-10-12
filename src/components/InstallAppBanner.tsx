@@ -28,13 +28,13 @@ export const InstallAppBanner: React.FC<InstallAppBannerProps> = ({
   }
 
   const handleInstallClick = async () => {
-    if (isInstallable) {
-      const success = await install();
-      if (success && onNotify) {
-        onNotify('Aplikacija je uspešno instalirana na vaš telefon!');
-      }
-    } else if (onOpenInstallModal) {
+    if (onOpenInstallModal) {
       onOpenInstallModal();
+      return;
+    }
+    const success = await install();
+    if (success && onNotify) {
+      onNotify('Aplikacija je uspešno instalirana na vaš telefon!');
     } else {
       setShowGuideModal(true);
     }

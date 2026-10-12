@@ -16,13 +16,51 @@ const PORT = 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// PWA explicit routes with required headers for Android Chrome and mobile browsers
+app.get(['/manifest.json', '/manifest.webmanifest'], (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  const pubPath = path.join(process.cwd(), 'public', 'manifest.json');
+  const distPath = path.join(process.cwd(), 'dist', 'manifest.json');
+  if (fs.existsSync(pubPath)) return res.sendFile(pubPath);
+  if (fs.existsSync(distPath)) return res.sendFile(distPath);
+  return res.json({
+    id: '/',
+    name: 'Moja mala klinika',
+    short_name: 'Klinika',
+    description: 'Laboratorijski nalazi i zdravstveni trendovi',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    theme_color: '#0a192f',
+    background_color: '#0a192f',
+  });
+});
+
+app.get('/sw.js', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  const pubPath = path.join(process.cwd(), 'public', 'sw.js');
+  const distPath = path.join(process.cwd(), 'dist', 'sw.js');
+  if (fs.existsSync(pubPath)) return res.sendFile(pubPath);
+  if (fs.existsSync(distPath)) return res.sendFile(distPath);
+  return res.status(404).send('SW not found');
+});
+
 // Serve static assets from public folder immediately with correct MIME types
 app.use(express.static(path.join(process.cwd(), 'public'), {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('manifest.json')) {
+    if (filePath.endsWith('manifest.json') || filePath.endsWith('manifest.webmanifest')) {
       res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+    if (filePath.endsWith('sw.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.setHeader('Service-Worker-Allowed', '/');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   }
 }));

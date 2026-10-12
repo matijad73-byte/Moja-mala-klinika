@@ -111,16 +111,31 @@ export function usePWAInstall() {
   }, [deferredPrompt]);
 
   const install = useCallback(async (): Promise<boolean> => {
-    // If prompt is saved, trigger it
-    const promptToUse = deferredPrompt || (window as any).__deferredPwaPrompt;
-    if (promptToUse && promptToUse.prompt) {
+    // 1. Try immediate prompt from React state or window global
+    let promptToUse = deferredPrompt || (typeof window !== 'undefined' ? (window as any).__deferredPwaPrompt : null);
+
+    // 2. If prompt hasn't arrived yet (e.g. user clicked right after load), wait up to 1500ms
+    if (!promptToUse && typeof window !== 'undefined') {
+      for (let i = 0; i < 15; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if ((window as any).__deferredPwaPrompt) {
+          promptToUse = (window as any).__deferredPwaPrompt;
+          setDeferredPrompt(promptToUse);
+          break;
+        }
+      }
+    }
+
+    if (promptToUse && typeof promptToUse.prompt === 'function') {
       try {
         await promptToUse.prompt();
         const choice = await promptToUse.userChoice;
         if (choice && choice.outcome === 'accepted') {
           setIsInstalled(true);
           setDeferredPrompt(null);
-          (window as any).__deferredPwaPrompt = null;
+          if (typeof window !== 'undefined') {
+            (window as any).__deferredPwaPrompt = null;
+          }
           return true;
         }
       } catch (err) {

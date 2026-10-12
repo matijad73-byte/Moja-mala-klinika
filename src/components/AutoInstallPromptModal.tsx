@@ -13,6 +13,8 @@ import {
   Copy,
   Check,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -40,8 +42,10 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
   } = usePWAInstall();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showManualGuide, setShowManualGuide] = useState(false);
 
   // Auto-open on mobile / in-app browser unless already installed as standalone PWA
   useEffect(() => {
@@ -64,6 +68,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
     if (forceOpen) {
       setIsOpen(true);
       setInstalledSuccess(false);
+      setIsInstalling(false);
     }
   }, [forceOpen]);
 
@@ -82,7 +87,8 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
   };
 
   const handleInstallClick = async () => {
-    if (isInstallable) {
+    setIsInstalling(true);
+    try {
       const outcome = await install();
       if (outcome) {
         setInstalledSuccess(true);
@@ -93,11 +99,21 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
         }, 1800);
         return;
       }
+    } catch (err) {
+      console.warn('Install error:', err);
+    } finally {
+      setIsInstalling(false);
     }
 
-    // If native prompt was not yet fired by browser
-    if (onNotify) {
-      onNotify('Pratite korake za dodavanje aplikacije na početni ekran.');
+    // If native prompt was not yet fired or supported in this browser
+    if (isViber || isInAppBrowser) {
+      if (onNotify) onNotify('Ugrađeni pregledač blokira instalaciju. Otvorite u Google Chrome-u.');
+    } else if (isIOS) {
+      setShowManualGuide(true);
+      if (onNotify) onNotify('Dodirnite dugme Deli u Safariju, pa „Dodaj na početni ekran”.');
+    } else {
+      setShowManualGuide(true);
+      if (onNotify) onNotify('Potvrdite instalaciju u Chrome-u (ili izaberite „Instaliraj aplikaciju” u meniju).');
     }
   };
 
@@ -114,7 +130,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
     }
   };
 
-  // Android Chrome Intent URL to jump directly out of Viber into Google Chrome
+  // Android Chrome Intent URL to jump directly out of Viber/Facebook/WhatsApp into Google Chrome
   const chromeIntentUrl =
     typeof window !== 'undefined'
       ? `intent://${window.location.host}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;end`
@@ -162,34 +178,38 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
         {/* Modal Body */}
         <div className="p-5 space-y-4 overflow-y-auto">
           {installedSuccess ? (
-            <div className="p-4 bg-emerald-950/60 border border-emerald-800 rounded-2xl flex items-center gap-3 text-emerald-200 text-xs shadow-2xs animate-in zoom-in-95">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+            <div className="p-5 bg-emerald-950/80 border-2 border-emerald-500 rounded-2xl flex items-center gap-3.5 text-emerald-200 text-xs shadow-lg animate-in zoom-in-95">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
               <div>
-                <strong className="block text-sm text-white">Uspešno instalirano!</strong>
-                <span>Aplikacija je dodata na vaš početni ekran. Možete je pokrenuti direktno kao i svaku drugu aplikaciju.</span>
+                <strong className="block text-base text-white font-black mb-1">
+                  Aplikacija je uspešno instalirana!
+                </strong>
+                <span className="text-xs text-emerald-200 leading-relaxed">
+                  Ikonica je postavljena na Vaš početni ekran. Sada možete otvarati aplikaciju direktno sa telefona jednim dodirom, kao i svaku drugu aplikaciju.
+                </span>
               </div>
             </div>
           ) : (
             <>
-              {/* UPOZORENJE I POMOĆ AKO JE OTVORENO IZ VIBERA */}
+              {/* UPOZORENJE I POMOĆ AKO JE OTVORENO IZ VIBERA / IN-APP PREGLEDAČA */}
               {(isViber || isInAppBrowser) && (
-                <div className="p-4 bg-amber-950/40 border-2 border-amber-500/80 rounded-2xl text-amber-200 text-xs space-y-2.5 shadow-xs">
+                <div className="p-4 bg-amber-950/40 border-2 border-amber-500/80 rounded-2xl text-amber-200 text-xs space-y-3 shadow-xs">
                   <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-                    <span>Otvorili ste link iz Vibera ili druge aplikacije!</span>
+                    <span>Otvorili ste link iz Vibera ili chat aplikacije</span>
                   </div>
                   <p className="text-amber-200 leading-relaxed">
-                    Ugrađeni pregledač u Viberu blokira instalaciju aplikacija na sistem. Da biste instalirali aplikaciju, otvorite link u <strong>Google Chrome-u</strong> (ili Safariju).
+                    Ugrađeni pregledač u Viberu blokira instalaciju. Da biste instalirali aplikaciju jednim dodirom, pređite u <strong>Google Chrome</strong>.
                   </p>
 
                   {/* Dugme za direktan prelazak u Chrome na Androidu */}
                   {isAndroid && (
                     <a
                       href={chromeIntentUrl}
-                      className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors text-center cursor-pointer"
+                      className="w-full py-3.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-colors text-center cursor-pointer"
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Otvori direktno u Google Chrome pregledaču</span>
+                      <ExternalLink className="w-4 h-4 text-slate-950" />
+                      <span>Otvori u Google Chrome pregledaču</span>
                     </a>
                   )}
 
@@ -202,163 +222,169 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
                 </div>
               )}
 
-              {/* AKO PREGLEDAČ DOZVOLJAVA JEDNIM DODIROM (Native beforeinstallprompt) */}
-              {isInstallable ? (
+              {/* GLAVNO DUGME ZA INSTALACIJU – UVEK VIDLJIVO I PROMINENTNO */}
+              <div className="space-y-2">
                 <button
-                  id="pwa-prompt-install-now-btn"
+                  id="modal-btn-install-phone"
                   onClick={handleInstallClick}
-                  className="w-full py-4 px-5 rounded-2xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 text-white font-extrabold text-base flex items-center justify-center gap-2.5 shadow-lg shadow-teal-600/30 transition-all cursor-pointer group"
+                  disabled={isInstalling}
+                  className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-teal-500 via-emerald-500 to-teal-600 hover:from-teal-400 hover:to-emerald-400 active:scale-[0.99] text-slate-950 font-black text-base flex flex-col items-center justify-center gap-1 shadow-xl shadow-teal-500/25 transition-all cursor-pointer group disabled:opacity-75"
                 >
-                  <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Instaliraj sada jednim dodirom</span>
-                </button>
-              ) : null}
-
-              {/* UPUTSTVO ZA ANDROID (Google Chrome) */}
-              {!isIOS && (
-                <div className="bg-[#112240] border border-slate-700 p-4 rounded-2xl space-y-3 text-xs text-slate-300">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-white text-sm">
-                      <MoreVertical className="w-4 h-4 text-teal-400" />
-                      <span>Uputstvo za Android (Google Chrome):</span>
-                    </div>
-                    <span className="bg-teal-950 text-teal-300 border border-teal-800 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                      2 brza koraka
-                    </span>
-                  </div>
-
-                  <ol className="space-y-2.5 text-slate-300 pl-1">
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                        1
-                      </span>
-                      <span>
-                        Dodirnite meni sa tri tačkice u gornjem desnom uglu <strong>(⋮)</strong> u Google Chrome pregledaču.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                        2
-                      </span>
-                      <span>
-                        Izaberite opciju <strong>„Instaliraj aplikaciju”</strong> (ili „Dodaj na početni ekran” / Add to Home screen).
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                        3
-                      </span>
-                      <span>
-                        Potvrdite sa <strong>„Instaliraj”</strong>. Ikonica aplikacije se automatski pojavljuje među vašim aplikacijama na telefonu!
-                      </span>
-                    </li>
-                  </ol>
-
-                  {/* Dugme za kopiranje linka ili otvaranje u Chrome */}
-                  <div className="pt-1 flex flex-col sm:flex-row gap-2">
-                    <button
-                      onClick={handleCopyLink}
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                    >
-                      {copiedLink ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-400" />
-                          <span className="text-emerald-400">Link je kopiran!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 text-slate-400" />
-                          <span>Kopiraj link aplikacije</span>
-                        </>
-                      )}
-                    </button>
-
-                    {isAndroid && (
-                      <a
-                        href={chromeIntentUrl}
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors text-center cursor-pointer"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        <span>Otvori u Chrome-u</span>
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* UPUTSTVO ZA IPHONE / IPAD (Safari) */}
-              {isIOS && (
-                <div className="bg-[#112240] border border-amber-800/80 p-4 rounded-2xl space-y-3 text-xs text-slate-300">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">
-                      <Compass className="w-4 h-4 text-amber-400" />
-                      <span>Uputstvo za iPhone / iPad (Safari):</span>
-                    </div>
-                    <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                      Safari
-                    </span>
-                  </div>
-
-                  <ol className="space-y-2.5 text-slate-300 pl-1">
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-amber-900 text-amber-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                        1
-                      </span>
-                      <span>
-                        Dodirnite ikonu <strong>„Deli”</strong> (kvadrat sa strelicom nagore 📤 na donjoj traci Safarija).
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-amber-900 text-amber-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                        2
-                      </span>
-                      <span>
-                        U meniju izaberite opciju <PlusSquare className="inline w-3.5 h-3.5 text-amber-300 mb-0.5" /> <strong>„Dodaj na početni ekran”</strong> (Add to Home Screen).
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-amber-900 text-amber-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                        3
-                      </span>
-                      <span>
-                        U gornjem desnom uglu pritisnite <strong>„Dodaj”</strong> (Add). Ikonica aplikacije je spremna na vašem telefonu!
-                      </span>
-                    </li>
-                  </ol>
-
-                  <button
-                    onClick={handleCopyLink}
-                    className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    {copiedLink ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-400" />
-                        <span className="text-emerald-400">Link je kopiran!</span>
-                      </>
+                  <div className="flex items-center gap-2.5">
+                    {isInstalling ? (
+                      <RefreshCw className="w-6 h-6 animate-spin text-slate-950" />
                     ) : (
-                      <>
-                        <Copy className="w-4 h-4 text-slate-400" />
-                        <span>Kopiraj link aplikacije</span>
-                      </>
+                      <Download className="w-6 h-6 text-slate-950 group-hover:scale-110 transition-transform" />
                     )}
-                  </button>
-                </div>
-              )}
+                    <span className="text-base font-black tracking-tight">
+                      {isInstalling ? 'Povezivanje sa pregledačem...' : 'Instaliraj na telefon'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-950/80">
+                    Jedan dodir – direktna instalacija na početni ekran
+                  </span>
+                </button>
+
+                <p className="text-[11px] text-center text-slate-400">
+                  Nema potrebe za ručnim odlaskom u meni pregledača – pritisnite dugme iznad.
+                </p>
+              </div>
+
+              {/* KORISNO DUGME ZA KOPIRANJE LINKA / OTVARANJE */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCopyLink}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span className="text-emerald-400">Link je kopiran!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-slate-400" />
+                      <span>Kopiraj link aplikacije</span>
+                    </>
+                  )}
+                </button>
+
+                {isAndroid && !isInAppBrowser && (
+                  <a
+                    href={chromeIntentUrl}
+                    className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    title="Otvara u aplikaciji Chrome"
+                  >
+                    <ExternalLink className="w-4 h-4 text-teal-300" />
+                    <span>Chrome</span>
+                  </a>
+                )}
+              </div>
+
+              {/* OPACIONO / SKLOPIVO UPUTSTVO ZA RUČNI UNOS (AKO PREGLEDAČ TRAŽI POTVRDU) */}
+              <div className="pt-1">
+                <button
+                  onClick={() => setShowManualGuide(!showManualGuide)}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer border border-slate-800"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <MoreVertical className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Pomoć i ručni koraci ako pregledač traži meni</span>
+                  </span>
+                  {showManualGuide ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </button>
+
+                {showManualGuide && (
+                  <div className="mt-2.5 bg-[#112240] border border-slate-700 p-4 rounded-2xl space-y-3 text-xs text-slate-300 animate-in fade-in duration-150">
+                    {!isIOS ? (
+                      <div className="space-y-2.5">
+                        <div className="font-bold text-white text-xs flex items-center gap-2">
+                          <MoreVertical className="w-4 h-4 text-teal-400" />
+                          <span>Koraci u Google Chrome meni pregledaču:</span>
+                        </div>
+                        <ol className="space-y-2 text-slate-300 pl-1">
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                              1
+                            </span>
+                            <span>
+                              Dodirnite meni sa tri tačkice u gornjem desnom uglu <strong>(⋮)</strong> u Chrome-u.
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                              2
+                            </span>
+                            <span>
+                              Izaberite opciju <strong>„Instaliraj aplikaciju”</strong> (ili „Dodaj na početni ekran”).
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-teal-950 border border-teal-800 text-teal-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                              3
+                            </span>
+                            <span>
+                              Potvrdite dodirom na <strong>„Instaliraj”</strong>.
+                            </span>
+                          </li>
+                        </ol>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="font-bold text-amber-300 text-xs flex items-center gap-2">
+                          <Compass className="w-4 h-4 text-amber-400" />
+                          <span>Uputstvo za iPhone / iPad (Safari):</span>
+                        </div>
+                        <ol className="space-y-2 text-slate-300 pl-1">
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-amber-950 border border-amber-800 text-amber-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                              1
+                            </span>
+                            <span>
+                              Dodirnite ikonu <strong>„Deli”</strong> (kvadrat sa strelicom 📤 na donjoj traci Safarija).
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-amber-950 border border-amber-800 text-amber-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                              2
+                            </span>
+                            <span>
+                              Izaberite opciju <PlusSquare className="inline w-3.5 h-3.5 text-amber-300 mb-0.5" /> <strong>„Dodaj na početni ekran”</strong> (Add to Home Screen).
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-amber-950 border border-amber-800 text-amber-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                              3
+                            </span>
+                            <span>
+                              U gornjem desnom uglu pritisnite <strong>„Dodaj”</strong> (Add).
+                            </span>
+                          </li>
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* 3 Prednosti instalacije */}
               <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700">
+                <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700/80">
                   <Sparkles className="w-4 h-4 mx-auto mb-1 text-teal-400" />
                   <span className="block text-[11px] font-bold text-white">1-Dodir</span>
                   <span className="text-[10px] text-slate-400">Sa ekrana</span>
                 </div>
-                <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700">
+                <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700/80">
                   <Smartphone className="w-4 h-4 mx-auto mb-1 text-sky-400" />
                   <span className="block text-[11px] font-bold text-white">Ceo ekran</span>
                   <span className="text-[10px] text-slate-400">Kao prava app</span>
                 </div>
-                <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700">
-                  <Download className="w-4 h-4 mx-auto mb-1 text-indigo-400" />
+                <div className="bg-[#112240] p-2.5 rounded-xl border border-slate-700/80">
+                  <Download className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
                   <span className="block text-[11px] font-bold text-white">Brzo</span>
                   <span className="text-[10px] text-slate-400">Bez kucanja adrese</span>
                 </div>
@@ -368,7 +394,7 @@ export const AutoInstallPromptModal: React.FC<AutoInstallPromptModalProps> = ({
               <div className="pt-1">
                 <button
                   onClick={handleClose}
-                  className="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
                 >
                   Nastavi u pregledaču
                 </button>
