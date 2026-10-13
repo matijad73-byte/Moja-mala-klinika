@@ -18,7 +18,17 @@ export const InstallAppBanner: React.FC<InstallAppBannerProps> = ({
   onNotify,
   onOpenInstallModal,
 }) => {
-  const { isInstallable, isInstalled, isStandalone, isIOS, install } = usePWAInstall();
+  const {
+    isInstallable,
+    isInstalled,
+    isStandalone,
+    isAndroid,
+    isIOS,
+    isInAppBrowser,
+    isViber,
+    chromeIntentUrl,
+    install,
+  } = usePWAInstall();
   const [isDismissed, setIsDismissed] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
@@ -28,16 +38,29 @@ export const InstallAppBanner: React.FC<InstallAppBannerProps> = ({
   }
 
   const handleInstallClick = async () => {
+    // 1. If in Viber or in-app browser on Android, jump straight to Chrome!
+    if (isAndroid && (isViber || isInAppBrowser)) {
+      if (onNotify) onNotify('Otvaram u Google Chrome-u za instalaciju...');
+      window.location.href = chromeIntentUrl;
+      return;
+    }
+
+    // 2. If browser install prompt is ready, trigger it directly on this click!
+    if (isInstallable) {
+      const success = await install();
+      if (success) {
+        if (onNotify) onNotify('Aplikacija je uspešno instalirana na vaš telefon!');
+        return;
+      }
+    }
+
+    // 3. Otherwise open the modal for device-specific instructions (iOS Safari / Chrome Menu)
     if (onOpenInstallModal) {
       onOpenInstallModal();
       return;
     }
-    const success = await install();
-    if (success && onNotify) {
-      onNotify('Aplikacija je uspešno instalirana na vaš telefon!');
-    } else {
-      setShowGuideModal(true);
-    }
+
+    setShowGuideModal(true);
   };
 
   return (

@@ -20,6 +20,7 @@ interface HeaderProps {
   abnormalCount: number;
   isHomeView?: boolean;
   onOpenInstallModal?: () => void;
+  onTriggerInstall?: () => void;
   isInstalled?: boolean;
 }
 
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   abnormalCount,
   isHomeView = false,
   onOpenInstallModal,
+  onTriggerInstall,
   isInstalled = false,
 }) => {
   return (
@@ -106,11 +108,11 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Install on phone button - shown only if not installed */}
-            {!isInstalled && onOpenInstallModal && (
+            {!isInstalled && (onTriggerInstall || onOpenInstallModal) && (
               <button
                 id="header-install-app-btn"
-                onClick={onOpenInstallModal}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs bg-teal-600 hover:bg-teal-500 text-white border-teal-500"
+                onClick={onTriggerInstall || onOpenInstallModal}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-md bg-teal-600 hover:bg-teal-500 active:bg-teal-700 text-white border-teal-500"
                 title="Instalirajte aplikaciju na telefon"
               >
                 <Smartphone className="w-4 h-4 text-teal-200" />

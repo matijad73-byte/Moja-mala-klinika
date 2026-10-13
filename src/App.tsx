@@ -967,6 +967,27 @@ export default function App() {
     );
   }
 
+  const handleTriggerInstall = async () => {
+    // 1. If in Viber or in-app browser on Android, jump straight to Chrome!
+    if (pwa.isAndroid && (pwa.isViber || pwa.isInAppBrowser)) {
+      setToastNotification('Otvaram aplikaciju u Google Chrome-u za instalaciju...');
+      window.location.href = pwa.chromeIntentUrl;
+      return;
+    }
+
+    // 2. If prompt is ready, trigger it directly right on this click event!
+    if (pwa.isInstallable) {
+      const success = await pwa.install();
+      if (success) {
+        setToastNotification('Aplikacija je uspešno instalirana na vaš telefon!');
+        return;
+      }
+    }
+
+    // 3. Otherwise open the modal for device-specific instructions (iOS Safari / Chrome Menu)
+    setIsInstallModalOpen(true);
+  };
+
   return (
     <div
       className={`min-h-screen flex flex-col font-sans transition-colors duration-200 bg-[#0a192f] text-slate-100 ${
@@ -1014,6 +1035,7 @@ export default function App() {
         abnormalCount={abnormalCount}
         isHomeView={activeView === 'home'}
         onOpenInstallModal={() => setIsInstallModalOpen(true)}
+        onTriggerInstall={handleTriggerInstall}
         isInstalled={pwa.isInstalled || pwa.isStandalone}
       />
 
@@ -1057,7 +1079,7 @@ export default function App() {
         {activeView === 'analysis' && (
           <InstallAppBanner
             onNotify={(msg) => setToastNotification(msg)}
-            onOpenInstallModal={() => setIsInstallModalOpen(true)}
+            onOpenInstallModal={handleTriggerInstall}
           />
         )}
 

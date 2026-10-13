@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moja-mala-klinika-v8';
+const CACHE_NAME = 'moja-mala-klinika-v9';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -13,10 +13,18 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn('PWA Precache warning (non-fatal):', err);
-      });
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.all(
+        PRECACHE_ASSETS.map((asset) =>
+          fetch(asset, { cache: 'no-cache' })
+            .then((res) => {
+              if (res.ok) return cache.put(asset, res);
+            })
+            .catch((err) => {
+              console.warn('Precache skip non-fatal:', asset, err);
+            })
+        )
+      );
     })
   );
 });
@@ -25,7 +33,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
-      // Purge all legacy caches so outdated JS/React chunks don't cause hook or blank screen errors
+      // Purge legacy caches so outdated chunks don't cause issues
       caches.keys().then((keys) => {
         return Promise.all(
           keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
@@ -55,7 +63,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 2. Handle navigation requests (SPA HTML entry)
-  // Always fetch from network first so code updates and preview loads instantly; fallback to cache when offline
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -85,7 +92,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 3. Handle static assets (PWA icons, manifest, favicon)
-  // Network first with cache fallback to guarantee fresh assets during updates
   if (
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.svg') ||

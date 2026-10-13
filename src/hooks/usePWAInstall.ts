@@ -21,8 +21,9 @@ export function usePWAInstall() {
   const [isViber, setIsViber] = useState(false);
 
   useEffect(() => {
-    // Check if running in standalone mode (already launched from phone home screen)
+    // 1. Check standalone mode (already launched from home screen icon)
     const checkIsStandalone = () => {
+      if (typeof window === 'undefined') return false;
       const standaloneQuery = window.matchMedia('(display-mode: standalone)').matches;
       const navigatorStandalone =
         (window.navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -32,9 +33,11 @@ export function usePWAInstall() {
 
     const standaloneActive = checkIsStandalone();
     setIsStandalone(standaloneActive);
-    setIsInstalled(standaloneActive);
+    if (standaloneActive) {
+      setIsInstalled(true);
+    }
 
-    // Check device and browser type
+    // 2. Check device and browser type
     const ua = window.navigator.userAgent.toLowerCase();
     const android = /android/.test(ua);
     const ios = /iphone|ipad|ipod/.test(ua);
@@ -51,7 +54,7 @@ export function usePWAInstall() {
     setIsInAppBrowser(inApp);
     setIsViber(viberDetected);
 
-    // Check if early prompt was already saved on window
+    // 3. Check if window already holds deferred prompt
     if ((window as any).__deferredPwaPrompt) {
       setDeferredPrompt((window as any).__deferredPwaPrompt);
     }
@@ -71,14 +74,16 @@ export function usePWAInstall() {
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
-      (window as any).__deferredPwaPrompt = null;
+      if (typeof window !== 'undefined') {
+        (window as any).__deferredPwaPrompt = null;
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('pwa-prompt-available', handlePromptAvailable);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Watch for display mode changes (e.g. user installs and launches)
+    // Watch for standalone display mode changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     const handleMediaChange = (e: MediaQueryListEvent) => {
       if (e.matches) {
@@ -90,13 +95,13 @@ export function usePWAInstall() {
       mediaQuery.addEventListener('change', handleMediaChange);
     }
 
-    // Periodic check during the first 6 seconds in case beforeinstallprompt fired before or during mount
+    // Poll during first 10 seconds to catch beforeinstallprompt as soon as Chromium fires it
     const pollInterval = setInterval(() => {
-      if ((window as any).__deferredPwaPrompt && !deferredPrompt) {
-        setDeferredPrompt((window as any).__deferredPwaPrompt);
+      if ((window as any).__deferredPwaPrompt) {
+        setDeferredPrompt((prev) => prev || (window as any).__deferredPwaPrompt);
       }
-    }, 400);
-    const stopPollTimer = setTimeout(() => clearInterval(pollInterval), 6000);
+    }, 300);
+    const stopPollTimer = setTimeout(() => clearInterval(pollInterval), 10000);
 
     return () => {
       clearInterval(pollInterval);
@@ -108,23 +113,13 @@ export function usePWAInstall() {
         mediaQuery.removeEventListener('change', handleMediaChange);
       }
     };
-  }, [deferredPrompt]);
+  }, []);
 
   const install = useCallback(async (): Promise<boolean> => {
-    // 1. Try immediate prompt from React state or window global
-    let promptToUse = deferredPrompt || (typeof window !== 'undefined' ? (window as any).__deferredPwaPrompt : null);
-
-    // 2. If prompt hasn't arrived yet (e.g. user clicked right after load), wait up to 1500ms
-    if (!promptToUse && typeof window !== 'undefined') {
-      for (let i = 0; i < 15; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        if ((window as any).__deferredPwaPrompt) {
-          promptToUse = (window as any).__deferredPwaPrompt;
-          setDeferredPrompt(promptToUse);
-          break;
-        }
-      }
-    }
+    // Immediate prompt from state or window global
+    const promptToUse =
+      deferredPrompt ||
+      (typeof window !== 'undefined' ? (window as any).__deferredPwaPrompt : null);
 
     if (promptToUse && typeof promptToUse.prompt === 'function') {
       try {
@@ -145,6 +140,11 @@ export function usePWAInstall() {
     return false;
   }, [deferredPrompt]);
 
+  const chromeIntentUrl =
+    typeof window !== 'undefined'
+      ? `intent://${window.location.host}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;end`
+      : '#';
+
   return {
     isInstallable: Boolean(deferredPrompt || (typeof window !== 'undefined' && (window as any).__deferredPwaPrompt)),
     isInstalled,
@@ -154,6 +154,7 @@ export function usePWAInstall() {
     isMobile,
     isInAppBrowser,
     isViber,
+    chromeIntentUrl,
     install,
   };
 }
