@@ -221,10 +221,18 @@ export const PrintableParameterReportModal: React.FC<PrintableParameterReportPro
 
             <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70">
               <span className="text-[11px] text-slate-500 block">Raspon merenih vrednosti</span>
-              <div className="text-base font-bold text-slate-900 mt-1">
-                Min: {Math.min(...trend.dataPoints.map((p) => p.value))} {trend.unit} — Maks:{' '}
-                {Math.max(...trend.dataPoints.map((p) => p.value))} {trend.unit}
-              </div>
+              {(() => {
+                const numericVals = trend.dataPoints
+                  .map((p) => p.value)
+                  .filter((v): v is number => v !== null && v !== undefined && !isNaN(v) && v > 0);
+                const minVal = numericVals.length > 0 ? Math.min(...numericVals) : '—';
+                const maxVal = numericVals.length > 0 ? Math.max(...numericVals) : '—';
+                return (
+                  <div className="text-base font-bold text-slate-900 mt-1">
+                    Min: {minVal} {trend.unit} — Maks: {maxVal} {trend.unit}
+                  </div>
+                );
+              })()}
               <p className="text-[11px] text-slate-500 mt-1">
                 Ukupno u bazi: {trend.dataPoints.length} nalaza
               </p>
@@ -272,13 +280,17 @@ export const PrintableParameterReportModal: React.FC<PrintableParameterReportPro
                         </td>
                         <td className="py-2 px-3 text-slate-700">{report.laboratoryName}</td>
                         <td className="py-2 px-3 text-right font-black text-slate-900 whitespace-nowrap">
-                          {param?.value} {param?.unit || trend.unit}
+                          {param && param.value !== null
+                            ? `${param.value} ${param.unit || trend.unit}`
+                            : (param?.textValue || 'Nije rađeno')}
                         </td>
                         <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
                           {param?.refText || trend.refText || `${trend.refMin || 0} - ${trend.refMax || 0}`} {param?.unit || trend.unit}
                         </td>
                         <td className="py-2 px-3 text-center whitespace-nowrap">
-                          {isHigh ? (
+                          {param?.value === null ? (
+                            <span className="font-medium text-slate-500">Nije rađeno</span>
+                          ) : isHigh ? (
                             <span className="font-bold text-rose-700">Povišeno</span>
                           ) : isLow ? (
                             <span className="font-bold text-amber-700">Sniženo</span>

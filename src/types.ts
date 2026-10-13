@@ -17,7 +17,7 @@ export interface LabParameter {
   name: string;
   alias?: string;
   category: ParameterCategory;
-  value: number;
+  value: number | null;
   textValue?: string;
   unit: string;
   refMin: number | null;
@@ -49,7 +49,7 @@ export interface LabReport {
 export interface TrendDataPoint {
   date: string;
   formattedDate: string;
-  value: number;
+  value: number | null;
   textValue?: string;
   unit: string;
   status: ParameterStatus;
@@ -66,10 +66,10 @@ export interface ParameterTrend {
   category: ParameterCategory;
   unit: string;
   dataPoints: TrendDataPoint[];
-  latestValue: number;
+  latestValue: number | null;
   latestStatus: ParameterStatus;
   latestDate: string;
-  previousValue?: number;
+  previousValue?: number | null;
   changePercent?: number;
   direction: 'up' | 'down' | 'stable';
   trendMeaning?: 'improving' | 'worsening' | 'stable';

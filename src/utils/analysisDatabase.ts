@@ -1,7 +1,7 @@
 import { LabReport, ParameterTrend } from '../types';
 import { calculateTrends } from './trendCalculator';
 
-const STORAGE_KEY = 'lab_analysis_database_v3_deep_lipid_chronology';
+const STORAGE_KEY = 'lab_analysis_database_v4_null_unmeasured_chronology';
 
 export interface AnalysisDatabaseRecord {
   signature: string;

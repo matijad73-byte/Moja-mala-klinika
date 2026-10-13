@@ -159,9 +159,9 @@ export const LoadReportsMenuModal: React.FC<LoadReportsMenuModalProps> = ({
                   onBackToHome();
                 }
               }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-slate-200"
+              className="w-full py-2.5 px-4 rounded-2xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md border border-red-500/40"
             >
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
+              <ArrowLeft className="w-4 h-4 text-white" />
               <span>Nazad na početnu stranu</span>
             </button>
           </div>

@@ -117,9 +117,9 @@ export const ReportsList: React.FC<ReportsListProps> = ({
             <button
               id="btn-back-to-all-reports"
               onClick={() => setSelectedReportId(null)}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white shadow-md border border-red-500/40 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 text-white" />
               <span>← Nazad na sve nalaze ({reports.length})</span>
             </button>
 
@@ -268,7 +268,7 @@ export const ReportsList: React.FC<ReportsListProps> = ({
                             param.status !== 'normal' ? 'text-rose-600' : 'text-slate-900'
                           }`}
                         >
-                          {param.textValue || param.value}
+                          {param.textValue || (param.value !== null ? param.value : '—')}
                         </td>
                         <td className="py-3 px-3 text-slate-500 font-medium">{param.unit}</td>
                         <td className="py-3 px-3 text-slate-600 font-mono text-[11px]">

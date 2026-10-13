@@ -77,7 +77,7 @@ export const ParameterCard: React.FC<ParameterCardProps> = ({
               isAbnormal ? 'text-rose-600' : 'text-slate-900'
             }`}
           >
-            {trend.latestValue}
+            {trend.latestValue !== null ? trend.latestValue : '—'}
           </span>
           <span className="text-xs font-semibold text-slate-500">{trend.unit}</span>
         </div>

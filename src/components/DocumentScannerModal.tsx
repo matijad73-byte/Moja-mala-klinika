@@ -933,7 +933,7 @@ export const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({
         <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/80">
           <button
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-500 active:bg-red-700 text-white shadow-md border border-red-500/40 transition-all cursor-pointer"
           >
             Nazad na početnu stranu
           </button>

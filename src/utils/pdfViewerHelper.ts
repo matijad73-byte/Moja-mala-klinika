@@ -146,7 +146,8 @@ export function generateMedicalLabPdfBlob(report: LabReport): Blob {
     } else {
       doc.setTextColor(15, 23, 42);
     }
-    doc.text(param.textValue || String(param.value), margin + 105, y + 3);
+    const displayVal = param.textValue || (param.value !== null ? String(param.value) : '—');
+    doc.text(displayVal, margin + 105, y + 3);
 
     // Unit
     doc.setFont('helvetica', 'normal');

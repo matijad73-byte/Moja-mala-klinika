@@ -897,8 +897,9 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
     });
 
     // Golden Rule 1: Ukupni Holesterol is ALWAYS the sum and MUST be greater than LDL and HDL!
+    // Golden Rule 1: Ukupni Holesterol is ALWAYS the sum and MUST be greater than LDL and HDL!
     // If LDL > Ukupni, they were swapped by OCR or table alignment:
-    if (chol && ldl && ldl.value > chol.value) {
+    if (chol && ldl && chol.value !== null && ldl.value !== null && ldl.value > chol.value) {
       const tempVal = chol.value;
       chol.value = ldl.value;
       ldl.value = tempVal;
@@ -912,7 +913,7 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
     }
 
     // Golden Rule 2: Ukupni Holesterol MUST be greater than HDL:
-    if (chol && hdl && hdl.value > chol.value) {
+    if (chol && hdl && chol.value !== null && hdl.value !== null && hdl.value > chol.value) {
       const tempVal = chol.value;
       chol.value = hdl.value;
       hdl.value = tempVal;
@@ -920,8 +921,8 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
 
     // Golden Rule 3: UKUPAN HOLESTEROL JE ZBIR FRAKCIJA: HDL + LDL (+ VLDL)
     // If Total is smaller than the sum of HDL and LDL, harmonize Total to the exact sum
-    if (chol && hdl && ldl) {
-      const vldl = trig && trig.value > 0 ? Math.round((trig.value / 2.2) * 100) / 100 : 0;
+    if (chol && hdl && ldl && chol.value !== null && hdl.value !== null && ldl.value !== null) {
+      const vldl = trig && trig.value !== null && trig.value > 0 ? Math.round((trig.value / 2.2) * 100) / 100 : 0;
       const minExpectedTotal = Math.round((hdl.value + ldl.value + vldl) * 100) / 100;
 
       if (chol.value < (hdl.value + ldl.value - 0.1)) {
@@ -936,8 +937,8 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
     }
 
     // Golden Rule 4: Friedewald synthesis if LDL is missing but Total and HDL are present
-    if (chol && hdl && !ldl) {
-      const vldl = trig ? Math.round((trig.value / 2.2) * 100) / 100 : 0.6;
+    if (chol && hdl && (!ldl || ldl.value === null) && chol.value !== null && hdl.value !== null) {
+      const vldl = trig && trig.value !== null ? Math.round((trig.value / 2.2) * 100) / 100 : 0.6;
       const calcLdl = Math.round((chol.value - hdl.value - vldl) * 100) / 100;
       if (calcLdl > 0.5) {
         reportParams.push({
@@ -957,8 +958,8 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
     }
 
     // Golden Rule 5: Total Cholesterol is sum if HDL and LDL are present but Total was omitted
-    if (!chol && ldl && hdl) {
-      const vldl = trig ? Math.round((trig.value / 2.2) * 100) / 100 : 0.7;
+    if ((!chol || chol.value === null) && ldl && hdl && ldl.value !== null && hdl.value !== null) {
+      const vldl = trig && trig.value !== null ? Math.round((trig.value / 2.2) * 100) / 100 : 0.7;
       const calcChol = Math.round((hdl.value + ldl.value + vldl) * 100) / 100;
       reportParams.push({
         id: `${report.id}-synthesized-chol`,
@@ -985,7 +986,7 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
       return c.canonicalKey === 'faktor_rizika';
     });
 
-    if (ldl && hdl && hdl.value > 0) {
+    if (ldl && hdl && ldl.value !== null && hdl.value !== null && hdl.value > 0) {
       const calcIa = Math.round((ldl.value / hdl.value) * 100) / 100;
       if (!ia) {
         reportParams.push({
@@ -1006,7 +1007,7 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
       }
     }
 
-    if (chol && hdl && hdl.value > 0) {
+    if (chol && hdl && chol.value !== null && hdl.value !== null && hdl.value > 0) {
       const calcFr = Math.round((chol.value / hdl.value) * 100) / 100;
       if (!fr) {
         reportParams.push({
@@ -1034,13 +1035,22 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
       // Deeply calibrate reference boundaries
       const refParsed = parseReferenceRange(param.refText, param.refMin, param.refMax);
 
+      // Clean value to strictly enforce null for unmeasured or 0 values
+      const cleanVal =
+        param.value === null || param.value === undefined || param.value === 0
+          ? null
+          : param.value;
+
       // Deeply verify status
-      const accurateStatus = calculateParameterStatus(
-        param.value,
-        refParsed.refMin,
-        refParsed.refMax,
-        key
-      );
+      const accurateStatus =
+        cleanVal !== null
+          ? calculateParameterStatus(
+              cleanVal,
+              refParsed.refMin,
+              refParsed.refMax,
+              key
+            )
+          : 'normal';
 
       let entry = parameterMap.get(key);
 
@@ -1082,8 +1092,8 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
         entry.dataPoints.push({
           date: report.date,
           formattedDate,
-          value: param.value,
-          textValue: param.textValue,
+          value: cleanVal,
+          textValue: param.textValue || (cleanVal === null ? 'Nije rađeno' : undefined),
           unit: param.unit,
           status: accurateStatus,
           reportId: report.id,
@@ -1105,15 +1115,23 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
     const points = entry.dataPoints;
     if (points.length === 0) return;
 
-    const latestPoint = points[points.length - 1];
-    const previousPoint = points.length > 1 ? points[points.length - 2] : undefined;
+    // Only strictly positive numerical measurements represent genuine clinical tests
+    const measuredPoints = points.filter((p) => p.value !== null && p.value !== undefined && p.value > 0);
+    const latestMeasuredPoint = measuredPoints.length > 0 ? measuredPoints[measuredPoints.length - 1] : undefined;
+    const previousMeasuredPoint = measuredPoints.length > 1 ? measuredPoints[measuredPoints.length - 2] : undefined;
 
     let changePercent: number | undefined = undefined;
     let direction: 'up' | 'down' | 'stable' = 'stable';
 
-    if (previousPoint && previousPoint.value !== 0) {
-      const diff = latestPoint.value - previousPoint.value;
-      changePercent = Number(((diff / previousPoint.value) * 100).toFixed(1));
+    if (
+      latestMeasuredPoint &&
+      previousMeasuredPoint &&
+      latestMeasuredPoint.value !== null &&
+      previousMeasuredPoint.value !== null &&
+      previousMeasuredPoint.value !== 0
+    ) {
+      const diff = latestMeasuredPoint.value - previousMeasuredPoint.value;
+      changePercent = Number(((diff / previousMeasuredPoint.value) * 100).toFixed(1));
       if (Math.abs(changePercent) < 1) {
         direction = 'stable';
       } else if (diff > 0) {
@@ -1123,11 +1141,12 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
       }
     }
 
+    const latestPoint = points[points.length - 1];
     const trendMeaning = evaluateTrendMeaning(
       entry.canonicalKey,
       direction,
-      latestPoint.status,
-      previousPoint?.status
+      latestMeasuredPoint ? latestMeasuredPoint.status : 'normal',
+      previousMeasuredPoint?.status
     );
 
     const hasAbnormal = points.some((p) => p.status !== 'normal');
@@ -1138,10 +1157,10 @@ export function calculateTrends(reports: LabReport[]): ParameterTrend[] {
       category: entry.category,
       unit: entry.unit,
       dataPoints: points,
-      latestValue: latestPoint.value,
-      latestStatus: latestPoint.status,
-      latestDate: latestPoint.date,
-      previousValue: previousPoint?.value,
+      latestValue: latestMeasuredPoint ? latestMeasuredPoint.value : null,
+      latestStatus: latestMeasuredPoint ? latestMeasuredPoint.status : 'normal',
+      latestDate: latestMeasuredPoint ? latestMeasuredPoint.date : latestPoint.date,
+      previousValue: previousMeasuredPoint ? previousMeasuredPoint.value : null,
       changePercent,
       direction,
       trendMeaning,

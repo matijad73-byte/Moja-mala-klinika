@@ -137,24 +137,27 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     {
       date: string;
       formattedDate: string;
-      value: number;
+      value: number | null;
+      textValue?: string;
       status: ParameterStatus;
       labName: string;
       refMin?: number | null;
       refMax?: number | null;
       refText?: string;
-      compareValue?: number;
+      compareValue?: number | null;
       compareStatus?: ParameterStatus;
       compareLab?: string;
     }
   >();
 
   trend.dataPoints.forEach((p) => {
-    const key = p.reportId || `${p.date}_${p.labName}_${p.value}`;
+    const cleanVal = p.value === null || p.value === undefined || p.value === 0 ? null : p.value;
+    const key = p.reportId || `${p.date}_${p.labName}_${cleanVal ?? 'null'}`;
     dateMap.set(key, {
       date: p.date,
       formattedDate: p.formattedDate,
-      value: p.value,
+      value: cleanVal,
+      textValue: p.textValue || (cleanVal === null ? 'Nije rađeno' : undefined),
       status: p.status,
       labName: p.labName,
       refMin: p.refMin,
@@ -172,10 +175,11 @@ export const TrendChart: React.FC<TrendChartProps> = ({
           break;
         }
       }
+      const cleanCompVal = p.value === null || p.value === undefined || p.value === 0 ? null : p.value;
       if (matchedKey) {
         const existing = dateMap.get(matchedKey);
         if (existing) {
-          existing.compareValue = p.value;
+          existing.compareValue = cleanCompVal;
           existing.compareStatus = p.status;
           existing.compareLab = p.labName;
         }
@@ -184,10 +188,11 @@ export const TrendChart: React.FC<TrendChartProps> = ({
         dateMap.set(key, {
           date: p.date,
           formattedDate: p.formattedDate,
-          value: null as any,
+          value: null,
+          textValue: p.textValue || 'Nije rađeno',
           status: 'normal',
           labName: p.labName,
-          compareValue: p.value,
+          compareValue: cleanCompVal,
           compareStatus: p.status,
           compareLab: p.labName,
         });
@@ -203,16 +208,25 @@ export const TrendChart: React.FC<TrendChartProps> = ({
       chartDate: formatChartDate(item.date, allDates),
     }));
 
-  // Determine Y-domain bounds
-  const values = trend.dataPoints.map((p) => p.value);
+  // Determine Y-domain bounds using only valid measured numerical values (> 0)
+  const values: number[] = [];
+  trend.dataPoints.forEach((p) => {
+    if (p.value !== null && p.value !== undefined && !isNaN(p.value) && p.value > 0) {
+      values.push(p.value);
+    }
+  });
   if (compareTrend) {
-    compareTrend.dataPoints.forEach((p) => values.push(p.value));
+    compareTrend.dataPoints.forEach((p) => {
+      if (p.value !== null && p.value !== undefined && !isNaN(p.value) && p.value > 0) {
+        values.push(p.value);
+      }
+    });
   }
   if (trend.refMin !== null && trend.refMin !== undefined) values.push(trend.refMin);
   if (trend.refMax !== null && trend.refMax !== undefined) values.push(trend.refMax);
 
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const maxValue = values.length > 0 ? Math.max(...values) : 10;
   const padding = (maxValue - minValue) * 0.15 || 1;
   const yMin = Math.max(0, Number((minValue - padding).toFixed(2)));
   const yMax = Number((maxValue + padding).toFixed(2));
@@ -220,7 +234,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   // Custom dot rendering with measured value displayed directly above each point
   const renderCustomDot = (props: any) => {
     const { cx, cy, payload } = props;
-    if (payload.value === null || payload.value === undefined || isNaN(cy)) return null;
+    if (payload.value === null || payload.value === undefined || payload.value === 0 || isNaN(cy)) return null;
 
     let fill = '#0d9488'; // base teal
     if (payload.status === 'high' || payload.status === 'critical') fill = '#e11d48'; // high: rose
@@ -260,7 +274,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   // Compare parameter dot with value directly above point
   const renderCompareDot = (props: any) => {
     const { cx, cy, payload } = props;
-    if (payload.compareValue === null || payload.compareValue === undefined || isNaN(cy)) return null;
+    if (payload.compareValue === null || payload.compareValue === undefined || payload.compareValue === 0 || isNaN(cy)) return null;
     return (
       <g key={`comp-dot-${cx}-${cy}`}>
         <circle
@@ -451,6 +465,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             strokeWidth={3}
             dot={renderCustomDot}
             activeDot={false}
+            connectNulls={true}
           />
 
           {/* Optional second line if comparison parameter selected */}
@@ -464,6 +479,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               strokeDasharray="4 4"
               dot={renderCompareDot}
               activeDot={false}
+              connectNulls={true}
             />
           )}
         </LineChart>
@@ -513,9 +529,11 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             <div className="text-right">
               <div className="flex items-center justify-end gap-1.5">
                 <span className="text-2xl font-black text-slate-900 tracking-tight">
-                  {trend.latestValue}
+                  {trend.latestValue !== null ? trend.latestValue : '—'}
                 </span>
-                <span className="text-xs font-semibold text-slate-500">{trend.unit}</span>
+                {trend.latestValue !== null && (
+                  <span className="text-xs font-semibold text-slate-500">{trend.unit}</span>
+                )}
               </div>
 
               {trend.changePercent !== undefined && (
@@ -680,17 +698,19 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                 >
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold text-slate-700 truncate">{monthLabel}</span>
-                    {isHigh && (
+                    {pt.value === null ? (
+                      <span className="text-[9px] px-1 py-0.2 rounded font-medium bg-slate-200 text-slate-600 shrink-0">
+                        Nije rađeno
+                      </span>
+                    ) : isHigh ? (
                       <span className="text-[9px] px-1 py-0.2 rounded font-bold bg-rose-200 text-rose-800 shrink-0">
                         Povišeno
                       </span>
-                    )}
-                    {isLow && (
+                    ) : isLow ? (
                       <span className="text-[9px] px-1 py-0.2 rounded font-bold bg-amber-200 text-amber-800 shrink-0">
                         Sniženo
                       </span>
-                    )}
-                    {!isHigh && !isLow && (
+                    ) : (
                       <span className="text-[9px] px-1 py-0.2 rounded font-medium bg-emerald-100 text-emerald-800 shrink-0">
                         Uredno
                       </span>
@@ -698,8 +718,12 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                   </div>
 
                   <div className="my-1 flex items-baseline gap-1">
-                    <span className="text-base font-extrabold text-slate-900">{pt.value}</span>
-                    <span className="text-[10px] text-slate-500 font-medium">{trend.unit}</span>
+                    <span className="text-base font-extrabold text-slate-900">
+                      {pt.value !== null ? pt.value : (pt.textValue || '—')}
+                    </span>
+                    {pt.value !== null && (
+                      <span className="text-[10px] text-slate-500 font-medium">{trend.unit}</span>
+                    )}
                   </div>
 
                   {isLipidParameter && (() => {
@@ -834,14 +858,22 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                     >
                       <div className="flex items-center justify-between text-[11px] text-slate-500">
                         <span className="font-semibold">{monthLabel}</span>
-                        {isHigh && <span className="text-[10px] text-rose-600 font-bold">Povišeno</span>}
-                        {isLow && <span className="text-[10px] text-amber-600 font-bold">Sniženo</span>}
-                        {!isHigh && !isLow && <span className="text-[10px] text-emerald-600 font-medium">Uredno</span>}
+                        {pt.value === null ? (
+                          <span className="text-[10px] text-slate-400 font-medium">Nije rađeno</span>
+                        ) : isHigh ? (
+                          <span className="text-[10px] text-rose-600 font-bold">Povišeno</span>
+                        ) : isLow ? (
+                          <span className="text-[10px] text-amber-600 font-bold">Sniženo</span>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-medium">Uredno</span>
+                        )}
                       </div>
 
                       <div className="my-1 flex items-baseline gap-1">
-                        <span className="text-base font-extrabold text-slate-900">{pt.value}</span>
-                        <span className="text-[10px] text-slate-500">{trend.unit}</span>
+                        <span className="text-base font-extrabold text-slate-900">
+                          {pt.value !== null ? pt.value : (pt.textValue || '—')}
+                        </span>
+                        {pt.value !== null && <span className="text-[10px] text-slate-500">{trend.unit}</span>}
                       </div>
 
                       {isLipidParameter && (() => {

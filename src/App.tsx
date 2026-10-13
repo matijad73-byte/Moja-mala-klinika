@@ -906,7 +906,7 @@ export default function App() {
       rep.parameters.forEach((p) => {
         csv += `"${rep.date}","${rep.laboratoryName}","${rep.fileSource}","${
           rep.patientName || ''
-        }","${p.name}","${p.alias || ''}","${p.category}",${p.value},"${p.unit}",${
+        }","${p.name}","${p.alias || ''}","${p.category}",${p.value !== null ? p.value : `"${p.textValue || ''}"`},"${p.unit}",${
           p.refMin ?? ''
         },${p.refMax ?? ''},"${p.refText}","${p.status}"\n`;
       });
@@ -1367,26 +1367,26 @@ export default function App() {
                 </div>
               </button>
 
-              {/* DUGME 4: NAZAD (Vraća se na prethodni ekran) */}
+              {/* DUGME 4: NAZAD (Vraća se na prethodni ekran - uočljivo crveno) */}
               <button
                 id="back-from-documents-btn"
                 onClick={() => setActiveView('home')}
-                className="w-full min-h-[50px] max-h-[64px] sm:min-h-[68px] flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-800 text-slate-100 font-bold transition-all border border-slate-700 cursor-pointer shadow-md group text-left"
+                className="w-full min-h-[50px] max-h-[64px] sm:min-h-[68px] flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-bold transition-all border border-red-500/50 cursor-pointer shadow-lg shadow-red-950/30 group text-left"
                 title="Povratak na prethodni početni ekran"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-700/80 text-slate-300 flex items-center justify-center shrink-0 group-hover:-translate-x-0.5 transition-transform">
-                    <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300" />
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0 group-hover:-translate-x-0.5 transition-transform">
+                    <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div className="min-w-0">
                     <div className="font-extrabold text-sm sm:text-base leading-tight text-white">Nazad</div>
-                    <div className="text-[11px] sm:text-xs text-slate-400 font-medium mt-0.5 truncate">
+                    <div className="text-[11px] sm:text-xs text-red-100 font-medium mt-0.5 truncate">
                       Povratak na početni ekran
                     </div>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-slate-700/80 flex items-center justify-center shrink-0">
-                  <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:-translate-x-0.5 transition-transform" />
+                <div className="w-8 h-8 rounded-full bg-red-700/70 flex items-center justify-center shrink-0">
+                  <ArrowLeft className="w-4 h-4 text-white group-hover:-translate-x-0.5 transition-transform" />
                 </div>
               </button>
             </div>
@@ -1404,9 +1404,9 @@ export default function App() {
                 <button
                   id="back-to-home-btn"
                   onClick={() => setActiveView('home')}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white border border-red-500/50 shadow-md text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4 text-slate-300" />
+                  <ArrowLeft className="w-4 h-4 text-white" />
                   <span>Nazad na početnu</span>
                 </button>
 

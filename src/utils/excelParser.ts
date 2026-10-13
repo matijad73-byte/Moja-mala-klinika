@@ -208,11 +208,24 @@ export function parseDateToISO(rawVal: any): string | null {
 export function cleanNumericValue(raw: any): number | null {
   if (raw === undefined || raw === null) return null;
   if (typeof raw === 'number') {
-    return isNaN(raw) ? null : raw;
+    if (isNaN(raw) || raw === 0) return null;
+    return raw;
   }
 
   let s = String(raw).trim();
-  if (!s || s === '-' || s === '/' || s.startsWith('#')) return null;
+  if (
+    !s ||
+    s === '0' ||
+    s === '0.0' ||
+    s === '0,0' ||
+    s === '-' ||
+    s === '/' ||
+    s === '—' ||
+    s === '–' ||
+    s.startsWith('#')
+  ) {
+    return null;
+  }
 
   const lower = s.toLowerCase();
   if (
@@ -222,8 +235,15 @@ export function cleanNumericValue(raw: any): number | null {
     lower.includes('nije radjen') ||
     lower.includes('nije rađeno') ||
     lower.includes('nije radjeno') ||
+    lower.includes('nije radj') ||
+    lower.includes('nije rad') ||
+    lower.includes('nije ispit') ||
     lower.includes('nema podatak') ||
-    lower.includes('nedostaj')
+    lower.includes('nedostaj') ||
+    lower.includes('nije meren') ||
+    lower.includes('nije mereno') ||
+    lower.includes('nije rađena') ||
+    lower.includes('bez nalaza')
   ) {
     return null;
   }
@@ -239,7 +259,8 @@ export function cleanNumericValue(raw: any): number | null {
   const match = s.match(/-?\d+(?:\.\d+)?/);
   if (match) {
     const num = parseFloat(match[0]);
-    return isNaN(num) ? null : num;
+    if (isNaN(num) || num === 0) return null;
+    return num;
   }
 
   return null;
@@ -1029,26 +1050,42 @@ function parseHorizontalDatesSheet(
       // Provera da li analiza nije rađena ili nema podatka u ovom izveštaju
       const isUnmeasured =
         !strVal ||
+        rawVal === 0 ||
+        strVal === '0' ||
+        strVal === '0.0' ||
+        strVal === '0,0' ||
         lowerVal === '-' ||
         lowerVal === '/' ||
+        lowerVal === '—' ||
+        lowerVal === '–' ||
         lowerVal === 'n/a' ||
         lowerVal === 'na' ||
         lowerVal.includes('nije rađen') ||
         lowerVal.includes('nije radjen') ||
         lowerVal.includes('nije rađeno') ||
         lowerVal.includes('nije radjeno') ||
+        lowerVal.includes('nije radj') ||
+        lowerVal.includes('nije rad') ||
+        lowerVal.includes('nije ispit') ||
         lowerVal.includes('nema podatak') ||
-        lowerVal.includes('nedostaj');
+        lowerVal.includes('nedostaj') ||
+        lowerVal.includes('nije meren') ||
+        lowerVal.includes('nije mereno') ||
+        lowerVal.includes('nije rađena') ||
+        lowerVal.includes('bez nalaza');
 
       const numVal = isUnmeasured ? null : cleanNumericValue(rawVal);
       const isPureText = !isUnmeasured && numVal === null && strVal.length > 0;
 
-      const finalNumericVal = numVal !== null ? numVal : 0;
-      const textVal = isUnmeasured ? (strVal || '—') : (isPureText ? strVal : undefined);
+      // Za analize koje nisu rađene ili gde je prazno polje prosleđujemo null umesto 0
+      const finalNumericVal = numVal !== null && numVal > 0 ? numVal : null;
+      const textVal = isUnmeasured
+        ? (strVal && strVal !== '0' && strVal !== '0.0' && strVal !== '0,0' ? strVal : 'Nije rađeno')
+        : (isPureText ? strVal : undefined);
 
       const status: ParameterStatus =
-        numVal !== null
-          ? calculateParameterStatus(numVal, refMin, refMax, canon.canonicalKey)
+        finalNumericVal !== null
+          ? calculateParameterStatus(finalNumericVal, refMin, refMax, canon.canonicalKey)
           : 'normal';
 
       const paramDisplayName = canon.name || rawParamName;

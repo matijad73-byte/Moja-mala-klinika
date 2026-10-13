@@ -22,9 +22,10 @@ export const ParameterCommentary: React.FC<ParameterCommentaryProps> = ({
   trend,
   reportCount,
 }) => {
-  const latestPoint = trend.dataPoints[trend.dataPoints.length - 1];
-  const firstPoint = trend.dataPoints[0];
-  const hasMultiplePoints = trend.dataPoints.length > 1;
+  const measuredPoints = trend.dataPoints.filter((p) => p.value !== null && p.value !== undefined && p.value > 0);
+  const latestPoint = measuredPoints.length > 0 ? measuredPoints[measuredPoints.length - 1] : trend.dataPoints[trend.dataPoints.length - 1];
+  const firstPoint = measuredPoints.length > 0 ? measuredPoints[0] : trend.dataPoints[0];
+  const hasMultiplePoints = measuredPoints.length > 1;
 
   // Derive specialized, deep clinical commentary based on parameter identity & status
   const getClinicalInterpretation = () => {
@@ -395,12 +396,16 @@ export const ParameterCommentary: React.FC<ParameterCommentaryProps> = ({
                 </p>
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Početno ({firstPoint.formattedDate}):</span>
-                    <span className="font-semibold text-slate-800">{firstPoint.value} {trend.unit}</span>
+                    <span className="text-slate-500">Početno ({firstPoint?.formattedDate || '—'}):</span>
+                    <span className="font-semibold text-slate-800">
+                      {firstPoint && firstPoint.value !== null ? `${firstPoint.value} ${trend.unit}` : (firstPoint?.textValue || '—')}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Poslednje ({latestPoint.formattedDate}):</span>
-                    <span className="font-bold text-teal-700">{latestPoint.value} {trend.unit}</span>
+                    <span className="text-slate-500">Poslednje ({latestPoint?.formattedDate || '—'}):</span>
+                    <span className="font-bold text-teal-700">
+                      {latestPoint && latestPoint.value !== null ? `${latestPoint.value} ${trend.unit}` : (latestPoint?.textValue || '—')}
+                    </span>
                   </div>
                   {trend.changePercent !== undefined && Math.abs(trend.changePercent) > 0 && (
                     <div className="flex justify-between border-t border-slate-100 pt-1 font-semibold">
